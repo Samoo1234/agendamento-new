@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import useStore from './store/useStore';
 import toast from 'react-hot-toast';
@@ -124,13 +124,6 @@ const TextArea = styled.textarea`
   }
 `;
 
-const FormatText = styled.div`
-  color: #666;
-  font-size: 12px;
-  margin-top: -8px;
-  margin-bottom: 4px;
-`;
-
 const Button = styled.button`
   width: 100%;
   padding: 12px;
@@ -144,7 +137,7 @@ const Button = styled.button`
   margin-top: 4px;
 `;
 
-const ErrorMessage = styled.span`
+const ErrorText = styled.span`
   color: #ff4444;
   font-size: 12px;
   margin-top: -8px;
@@ -158,82 +151,92 @@ function AgendamentoForm() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
+  const [availableTimes, setAvailableTimes] = useState([]);
   const [errors, setErrors] = useState({});
   
   const { 
     cities, 
-    doctors, 
     availableDates,
-    addAppointment,
-    setIsLoading 
+    scheduleConfigs,
+    fetchScheduleConfigs,
+    createAppointment 
   } = useStore();
 
   const navigate = useNavigate();
 
-  const filteredDates = availableDates.filter(date => {
-    const selectedCityName = cities.find(c => c.id === parseInt(selectedCity))?.name;
-    return date.cidade === selectedCityName && date.status === 'Disponível';
-  });
+  useEffect(() => {
+    fetchScheduleConfigs();
+  }, [fetchScheduleConfigs]);
 
-  const selectedCityDoctor = filteredDates[0]?.medico || '';
+  useEffect(() => {
+    if (selectedCity && selectedDate) {
+      const cityConfig = scheduleConfigs[selectedCity];
+      if (cityConfig) {
+        const slots = [];
+        const addTimeSlots = (start, end, interval) => {
+          const startTime = new Date(`2000-01-01T${start}`);
+          const endTime = new Date(`2000-01-01T${end}`);
+          
+          while (startTime < endTime) {
+            slots.push(startTime.toLocaleTimeString('pt-BR', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false 
+            }));
+            startTime.setMinutes(startTime.getMinutes() + interval);
+          }
+        };
 
-  const validateForm = useCallback(() => {
-    const newErrors = {};
-    if (!selectedCity) newErrors.city = 'Selecione uma cidade';
-    if (!selectedDate) newErrors.date = 'Selecione uma data';
-    if (!selectedTime) newErrors.time = 'Selecione um horário';
-    if (!name.trim()) newErrors.name = 'Digite seu nome';
-    if (!phone.trim()) newErrors.phone = 'Digite seu telefone';
-    if (phone.trim() && !/^\(\d{2}\) \d{4,5}-\d{4}$/.test(phone)) {
-      newErrors.phone = 'Formato inválido. Use (99) 99999-9999';
+        if (cityConfig.periodoManha) {
+          addTimeSlots(cityConfig.horarios.manhaInicio, cityConfig.horarios.manhaFim, cityConfig.intervalo);
+        }
+        if (cityConfig.periodoTarde) {
+          addTimeSlots(cityConfig.horarios.tardeInicio, cityConfig.horarios.tardeFim, cityConfig.intervalo);
+        }
+
+        setAvailableTimes(slots);
+      } else {
+        setAvailableTimes([]);
+      }
+    } else {
+      setAvailableTimes([]);
     }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [selectedCity, selectedDate, selectedTime, name, phone]);
+  }, [selectedCity, selectedDate, scheduleConfigs]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    const errors = {};
 
-    setIsLoading(true);
+    if (!selectedCity) errors.city = 'Selecione uma cidade';
+    if (!selectedDate) errors.date = 'Selecione uma data';
+    if (!selectedTime) errors.time = 'Selecione um horário';
+    if (!name.trim()) errors.name = 'Digite seu nome';
+    if (!phone.trim()) errors.phone = 'Digite seu telefone';
+
+    if (Object.keys(errors).length > 0) {
+      setErrors(errors);
+      return;
+    }
+
     try {
-      const selectedCityName = cities.find(c => c.id === parseInt(selectedCity))?.name;
+      const selectedCityName = cities.find(c => c.id.toString() === selectedCity)?.name;
+      const selectedDateObj = availableDates.find(date => date.id.toString() === selectedDate);
       
-      await addAppointment({
+      await createAppointment({
         cidade: selectedCityName,
-        medico: selectedCityDoctor,
-        data: filteredDates.find(date => date.id === parseInt(selectedDate))?.data,
+        data: selectedDateObj.data,
         horario: selectedTime,
-        paciente: name,
+        nome: name,
         telefone: phone,
-        status: 'Agendado',
-        infoAdicional: additionalInfo
+        informacoes: additionalInfo,
+        status: 'Agendado'
       });
 
       toast.success('Consulta agendada com sucesso!');
-      setSelectedCity('');
-      setSelectedDate('');
-      setSelectedTime('');
-      setName('');
-      setPhone('');
-      setAdditionalInfo('');
-      setErrors({});
+      navigate('/');
     } catch (error) {
       toast.error('Erro ao agendar consulta');
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  const handlePhoneChange = (e) => {
-    let value = e.target.value;
-    value = value
-      .replace(/\D/g, '')
-      .replace(/^(\d{2})(\d)/g, '($1) $2')
-      .replace(/(\d)(\d{4})$/, '$1-$2')
-      .slice(0, 15);
-    setPhone(value);
   };
 
   return (
@@ -266,12 +269,9 @@ function AgendamentoForm() {
               </option>
             ))}
           </Select>
-          {errors.city && <ErrorMessage>{errors.city}</ErrorMessage>}
-          {selectedCity && selectedCityDoctor && (
-            <p>Médico: {selectedCityDoctor}</p>
-          )}
+          {errors.city && <ErrorText>{errors.city}</ErrorText>}
 
-          <Select 
+          <Select
             value={selectedDate}
             onChange={(e) => {
               setSelectedDate(e.target.value);
@@ -281,28 +281,53 @@ function AgendamentoForm() {
             error={errors.date}
           >
             <option value="">Selecione uma data</option>
-            {filteredDates.map(date => (
-              <option key={date.id} value={date.id}>
-                {date.data}
-              </option>
-            ))}
+            {availableDates
+              .filter(date => {
+                const selectedCityName = cities.find(c => c.id.toString() === selectedCity)?.name;
+                console.log(`Filtrando data: ${JSON.stringify(date)}, Cidade selecionada: ${selectedCityName}`);
+                
+                // Normalizar os nomes das cidades para comparação (remover acentos, converter para minúsculas)
+                const normalizeString = (str) => {
+                  return str
+                    ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+                    : '';
+                };
+                
+                const normalizedDateCity = normalizeString(date.cidade);
+                const normalizedSelectedCity = normalizeString(selectedCityName);
+                
+                // Verificar se a data é para a cidade selecionada e ainda está disponível
+                const matchesCity = normalizedDateCity === normalizedSelectedCity;
+                const isAvailable = date.status === 'Disponível';
+                
+                console.log(`Data ${date.data} - Cidade da data: ${normalizedDateCity}, Cidade selecionada: ${normalizedSelectedCity}, Corresponde: ${matchesCity}, Status: ${date.status}`);
+                
+                return matchesCity && isAvailable;
+                // Nota: A verificação da data já foi feita na função getAvailableDates
+                // Então aqui só precisamos verificar o status que já foi atualizado
+              })
+              .map(date => (
+                <option key={date.id} value={date.id}>
+                  {date.data}
+                </option>
+              ))}
           </Select>
-          {errors.date && <ErrorMessage>{errors.date}</ErrorMessage>}
+          {errors.date && <ErrorText>{errors.date}</ErrorText>}
 
-          <Select 
+          <Select
             value={selectedTime}
             onChange={(e) => setSelectedTime(e.target.value)}
-            disabled={!selectedDate}
             error={errors.time}
+            disabled={!selectedCity || !selectedDate}
           >
             <option value="">Selecione um horário</option>
-            {['08:00', '09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'].map(time => (
+            {availableTimes.map(time => (
               <option key={time} value={time}>
                 {time}
               </option>
             ))}
           </Select>
-          {errors.time && <ErrorMessage>{errors.time}</ErrorMessage>}
+          {errors.time && <ErrorText>{errors.time}</ErrorText>}
 
           <Input
             type="text"
@@ -311,17 +336,16 @@ function AgendamentoForm() {
             onChange={(e) => setName(e.target.value)}
             error={errors.name}
           />
-          {errors.name && <ErrorMessage>{errors.name}</ErrorMessage>}
+          {errors.name && <ErrorText>{errors.name}</ErrorText>}
 
           <Input
-            type="text"
+            type="tel"
             placeholder="Telefone"
             value={phone}
-            onChange={handlePhoneChange}
+            onChange={(e) => setPhone(e.target.value)}
             error={errors.phone}
           />
-          {errors.phone && <ErrorMessage>{errors.phone}</ErrorMessage>}
-          <FormatText>Formato: (99) 99999-9999</FormatText>
+          {errors.phone && <ErrorText>{errors.phone}</ErrorText>}
 
           <TextArea
             placeholder="Informações adicionais"
@@ -329,7 +353,9 @@ function AgendamentoForm() {
             onChange={(e) => setAdditionalInfo(e.target.value)}
           />
 
-          <Button type="submit">AGENDAR CONSULTA</Button>
+          <Button type="submit">
+            Agendar Consulta
+          </Button>
         </Form>
       </FormContainer>
     </Container>

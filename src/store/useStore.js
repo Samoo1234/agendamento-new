@@ -1,154 +1,351 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import * as firebaseService from '../services/firebaseService';
 
 const useStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Auth State
       isAuthenticated: false,
       user: null,
       login: (userData) => set({ isAuthenticated: true, user: userData }),
       logout: () => set({ isAuthenticated: false, user: null }),
 
-      // Users State
-      users: [
-        {
-          id: 1,
-          email: 'admin@admin.com',
-          senha: 'admin123',
-          cidade: 'Mantena',
-          funcao: 'admin',
-          status: true,
-          dataCriacao: '20/03/2025'
+      // Usuários
+      users: [],
+      fetchUsers: async () => {
+        try {
+          set({ isLoading: true });
+          const users = await firebaseService.getUsers();
+          set({ users });
+        } catch (error) {
+          set({ error: error.message });
+        } finally {
+          set({ isLoading: false });
         }
-      ],
-      addUser: (user) => set((state) => {
-        const emailExists = state.users.some(u => u.email === user.email);
-        if (emailExists) {
-          throw new Error('Email já cadastrado');
+      },
+      addUser: async (userData) => {
+        try {
+          set({ isLoading: true });
+          const newUser = await firebaseService.addUser(userData);
+          set((state) => ({ users: [...state.users, newUser] }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
         }
-        return { users: [...state.users, user] };
-      }),
-      updateUser: (id, updatedUser) => set((state) => ({
-        users: state.users.map(user =>
-          user.id === id
-            ? { ...user, ...updatedUser }
-            : user
-        )
-      })),
-      deleteUser: (id) => set((state) => {
-        const user = state.users.find(u => u.id === id);
-        if (user?.funcao === 'admin' && state.users.filter(u => u.funcao === 'admin').length === 1) {
-          throw new Error('Não é possível excluir o último administrador');
+      },
+      updateUser: async (id, userData) => {
+        try {
+          set({ isLoading: true });
+          const updatedUser = await firebaseService.updateUser(id, userData);
+          set((state) => ({
+            users: state.users.map(user => user.id === id ? updatedUser : user)
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
         }
-        return { users: state.users.filter(user => user.id !== id) };
-      }),
+      },
+      deleteUser: async (id) => {
+        try {
+          set({ isLoading: true });
+          await firebaseService.deleteUser(id);
+          set((state) => ({
+            users: state.users.filter(user => user.id !== id)
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
-      // Doctors State
+      // Médicos
       doctors: [],
-      setDoctors: (doctors) => set({ doctors }),
-      addDoctor: (doctor) => set((state) => ({ 
-        doctors: [...state.doctors, {
-          ...doctor,
-          id: Date.now()
-        }]
-      })),
-      updateDoctor: (id, updatedDoctor) => set((state) => ({
-        doctors: state.doctors.map(doctor =>
-          doctor.id === id
-            ? { ...doctor, ...updatedDoctor }
-            : doctor
-        )
-      })),
-      deleteDoctor: (id) => set((state) => ({
-        doctors: state.doctors.filter(doctor => doctor.id !== id)
-      })),
+      fetchDoctors: async () => {
+        try {
+          set({ isLoading: true });
+          const doctors = await firebaseService.getDoctors();
+          set({ doctors });
+        } catch (error) {
+          set({ error: error.message });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      addDoctor: async (doctorData) => {
+        try {
+          set({ isLoading: true });
+          const newDoctor = await firebaseService.addDoctor(doctorData);
+          set((state) => ({ doctors: [...state.doctors, newDoctor] }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      updateDoctor: async (id, doctorData) => {
+        try {
+          set({ isLoading: true });
+          const updatedDoctor = await firebaseService.updateDoctor(id, doctorData);
+          set((state) => ({
+            doctors: state.doctors.map(doctor => doctor.id === id ? updatedDoctor : doctor)
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      deleteDoctor: async (id) => {
+        try {
+          set({ isLoading: true });
+          await firebaseService.deleteDoctor(id);
+          set((state) => ({
+            doctors: state.doctors.filter(doctor => doctor.id !== id)
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
-      // Cities State
+      // Cidades
       cities: [],
-      setCities: (cities) => set({ cities }),
-      addCity: (city) => set((state) => ({ 
-        cities: [...state.cities, { ...city, doctorIds: [] }]
-      })),
-      updateCity: (id, updatedCity) => set((state) => ({
-        cities: state.cities.map(city =>
-          city.id === id
-            ? { ...city, ...updatedCity }
-            : city
-        )
-      })),
-      deleteCity: (id) => set((state) => ({
-        cities: state.cities.filter(city => city.id !== id)
-      })),
+      fetchCities: async () => {
+        try {
+          set({ isLoading: true });
+          const cities = await firebaseService.getCities();
+          set({ cities });
+        } catch (error) {
+          set({ error: error.message });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      addCity: async (cityData) => {
+        try {
+          set({ isLoading: true });
+          const newCity = await firebaseService.addCity(cityData);
+          set((state) => ({ cities: [...state.cities, newCity] }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      updateCity: async (id, cityData) => {
+        try {
+          set({ isLoading: true });
+          const updatedCity = await firebaseService.updateCity(id, cityData);
+          set((state) => ({
+            cities: state.cities.map(city => city.id === id ? updatedCity : city)
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      deleteCity: async (id) => {
+        try {
+          set({ isLoading: true });
+          await firebaseService.deleteCity(id);
+          set((state) => ({
+            cities: state.cities.filter(city => city.id !== id)
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
-      // Available Dates State
+      // Datas Disponíveis
       availableDates: [],
-      setAvailableDates: (dates) => set({ availableDates: dates }),
-      addAvailableDate: (date) => set((state) => ({
-        availableDates: [...state.availableDates, {
-          ...date,
-          id: Date.now()
-        }]
-      })),
-      updateAvailableDate: (id, updatedDate) => set((state) => ({
-        availableDates: state.availableDates.map(date =>
-          date.id === id
-            ? { ...date, ...updatedDate }
-            : date
-        )
-      })),
-      deleteAvailableDate: (id) => set((state) => ({
-        availableDates: state.availableDates.filter(date => date.id !== id)
-      })),
+      fetchAvailableDates: async () => {
+        try {
+          set({ isLoading: true });
+          const dates = await firebaseService.getAvailableDates();
+          set({ availableDates: dates });
+        } catch (error) {
+          set({ error: error.message });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      addAvailableDate: async (dateData) => {
+        try {
+          set({ isLoading: true });
+          const newDate = await firebaseService.addAvailableDate(dateData);
+          set((state) => ({ availableDates: [...state.availableDates, newDate] }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      updateAvailableDate: async (id, dateData) => {
+        try {
+          set({ isLoading: true });
+          const updatedDate = await firebaseService.updateAvailableDate(id, dateData);
+          set((state) => ({
+            availableDates: state.availableDates.map(date => date.id === id ? updatedDate : date)
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      deleteAvailableDate: async (id) => {
+        try {
+          set({ isLoading: true });
+          await firebaseService.deleteAvailableDate(id);
+          set((state) => ({
+            availableDates: state.availableDates.filter(date => date.id !== id)
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
-      // Appointments State
+      // Agendamentos
       appointments: [],
-      setAppointments: (appointments) => set({ appointments }),
-      addAppointment: (appointment) => set((state) => ({
-        appointments: [...state.appointments, {
-          ...appointment,
-          id: Date.now(),
-          status: appointment.status || 'Pendente'
-        }]
-      })),
-      updateAppointment: (id, updatedAppointment) => set((state) => ({
-        appointments: state.appointments.map(appointment =>
-          appointment.id === id
-            ? { ...appointment, ...updatedAppointment }
-            : appointment
-        )
-      })),
-      deleteAppointment: (id) => set((state) => ({
-        appointments: state.appointments.filter(appointment => appointment.id !== id)
-      })),
+      fetchAppointments: async () => {
+        try {
+          set({ isLoading: true });
+          const appointments = await firebaseService.getAppointments();
+          set({ appointments });
+        } catch (error) {
+          set({ error: error.message });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      addAppointment: async (appointmentData) => {
+        try {
+          set({ isLoading: true });
+          const newAppointment = await firebaseService.addAppointment(appointmentData);
+          set((state) => ({ appointments: [...state.appointments, newAppointment] }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      updateAppointment: async (id, appointmentData) => {
+        try {
+          set({ isLoading: true });
+          const updatedAppointment = await firebaseService.updateAppointment(id, appointmentData);
+          set((state) => ({
+            appointments: state.appointments.map(appointment => 
+              appointment.id === id ? updatedAppointment : appointment
+            )
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      deleteAppointment: async (id) => {
+        try {
+          set({ isLoading: true });
+          await firebaseService.deleteAppointment(id);
+          set((state) => ({
+            appointments: state.appointments.filter(appointment => appointment.id !== id)
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
-      // Loading States
+      // Configurações de Horários
+      scheduleConfigs: {},
+      fetchScheduleConfigs: async () => {
+        try {
+          set({ isLoading: true });
+          const configs = await firebaseService.getAllScheduleConfigs();
+          const configsMap = configs.reduce((acc, config) => {
+            acc[config.id] = config;
+            return acc;
+          }, {});
+          set({ scheduleConfigs: configsMap });
+        } catch (error) {
+          set({ error: error.message });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      saveScheduleConfig: async (cityId, config) => {
+        try {
+          set({ isLoading: true });
+          const savedConfig = await firebaseService.saveScheduleConfig(cityId, config);
+          set((state) => ({
+            scheduleConfigs: {
+              ...state.scheduleConfigs,
+              [cityId]: savedConfig
+            }
+          }));
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      getScheduleConfig: async (cityId) => {
+        try {
+          set({ isLoading: true });
+          const config = await firebaseService.getScheduleConfig(cityId);
+          if (config) {
+            set((state) => ({
+              scheduleConfigs: {
+                ...state.scheduleConfigs,
+                [cityId]: config
+              }
+            }));
+          }
+          return config;
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      // Estados de Loading e Error
       isLoading: false,
       setIsLoading: (isLoading) => set({ isLoading }),
-
-      // Error State
       error: null,
-      setError: (error) => set({ error }),
-
-      // Doctor-City Relationship
-      assignDoctorToCity: (doctorId, cityId) => set((state) => ({
-        cities: state.cities.map(city =>
-          city.id === cityId
-            ? { ...city, doctorIds: [...new Set([...city.doctorIds, doctorId])] }
-            : city
-        )
-      })),
-      removeDoctorFromCity: (doctorId, cityId) => set((state) => ({
-        cities: state.cities.map(city =>
-          city.id === cityId
-            ? { ...city, doctorIds: city.doctorIds.filter(id => id !== doctorId) }
-            : city
-        )
-      }))
+      setError: (error) => set({ error })
     }),
     {
-      name: 'agendamento-store',
-      getStorage: () => localStorage,
+      name: 'agendamento-store'
     }
   )
 );

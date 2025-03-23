@@ -50,39 +50,6 @@ const ChartCard = styled.div`
   min-height: 300px;
 `;
 
-const Sidebar = styled.div`
-  width: 250px;
-  background-color: #000033;
-  color: white;
-  padding: 20px 0;
-`;
-
-const Nav = styled.nav`
-  display: flex;
-  flex-direction: column;
-`;
-
-const NavItem = styled.div`
-  display: flex;
-  align-items: center;
-  padding: 12px 20px;
-  color: white;
-  text-decoration: none;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-
-  &.active {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-
-  svg {
-    margin-right: 10px;
-  }
-`;
-
 function Dashboard() {
   return (
     <MainContent>
@@ -119,19 +86,6 @@ function Dashboard() {
             {/* Aqui será implementado o gráfico de linha */}
           </ChartCard>
         </ChartsContainer>
-        <Sidebar>
-          <Nav>
-            <NavItem>
-              <h3>Menu</h3>
-            </NavItem>
-            <NavItem>
-              <h3>Item 1</h3>
-            </NavItem>
-            <NavItem>
-              <h3>Item 2</h3>
-            </NavItem>
-          </Nav>
-        </Sidebar>
     </MainContent>
   );
 }

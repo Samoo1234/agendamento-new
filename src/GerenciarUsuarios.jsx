@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import useStore from './store/useStore';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { collection, getDocs, updateDoc, deleteDoc, doc, addDoc } from 'firebase/firestore';
+import { db } from './config/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from './config/firebase';
 
 const MainContent = styled.div`
   width: 100%;
+  padding: 20px;
 `;
 
 const Title = styled.h1`
@@ -51,17 +54,61 @@ const Td = styled.td`
 `;
 
 const ActionButton = styled.button`
-  padding: 4px 8px;
-  margin: 0 4px;
+  padding: 6px 12px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
-  background-color: ${props => props.delete ? '#ff4444' : '#000080'};
+  margin-right: 5px;
   color: white;
+  background-color: ${props => props.$variant === 'edit' ? '#007bff' : '#dc3545'};
 
   &:hover {
-    background-color: ${props => props.delete ? '#cc0000' : '#000066'};
+    opacity: 0.9;
+  }
+`;
+
+const ToggleSwitch = styled.label`
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  span {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+
+    &:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+  }
+
+  input:checked + span {
+    background-color: #28a745;
+  }
+
+  input:checked + span:before {
+    transform: translateX(26px);
   }
 `;
 
@@ -117,57 +164,77 @@ const ModalButton = styled.button`
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  background-color: ${props => props.cancel ? '#ddd' : '#000080'};
-  color: ${props => props.cancel ? '#333' : 'white'};
+  background-color: ${props => props.$cancel ? '#ddd' : '#000080'};
+  color: ${props => props.$cancel ? '#333' : 'white'};
 
   &:hover {
-    background-color: ${props => props.cancel ? '#ccc' : '#000066'};
+    opacity: 0.9;
   }
 `;
 
-const StatusToggle = styled.div`
-  width: 40px;
-  height: 20px;
-  background-color: ${props => props.$active ? '#4CAF50' : '#ccc'};
-  border-radius: 10px;
-  position: relative;
-  cursor: pointer;
-  transition: background-color 0.3s;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: ${props => props.$active ? '22px' : '2px'};
-    width: 16px;
-    height: 16px;
-    background-color: white;
-    border-radius: 50%;
-    transition: left 0.3s;
-  }
-`;
-
-function GerenciarUsuarios() {
+const GerenciarUsuarios = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const { users, addUser, updateUser, deleteUser } = useStore();
   const [formData, setFormData] = useState({
     email: '',
     senha: '',
     cidade: '',
-    funcao: 'usuario',
-    status: true
+    role: 'usuario'
   });
 
-  const resetForm = () => {
-    setFormData({
-      email: '',
-      senha: '',
-      cidade: '',
-      funcao: 'usuario',
-      status: true
-    });
-    setEditingId(null);
+  const fetchUsers = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'usuarios'));
+      console.log('Documentos encontrados:', querySnapshot.size);
+      const usersData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('Dados do usuário:', data);
+        return {
+          id: doc.id,
+          ...data
+        };
+      });
+      console.log('Dados processados:', usersData);
+      setUsers(usersData);
+    } catch (error) {
+      toast.error('Erro ao carregar usuários');
+      console.error('Erro:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleStatusChange = async (id, currentStatus) => {
+    try {
+      const userRef = doc(db, 'usuarios', id);
+      await updateDoc(userRef, {
+        disabled: !currentStatus
+      });
+      toast.success('Status atualizado com sucesso!');
+      fetchUsers();
+    } catch (error) {
+      toast.error('Erro ao atualizar status');
+      console.error('Erro:', error);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
+      try {
+        await deleteDoc(doc(db, 'usuarios', id));
+        toast.success('Usuário excluído com sucesso!');
+        fetchUsers();
+      } catch (error) {
+        toast.error('Erro ao excluir usuário');
+        console.error('Erro:', error);
+      }
+    }
   };
 
   const handleInputChange = (e) => {
@@ -178,89 +245,87 @@ function GerenciarUsuarios() {
     }));
   };
 
-  const handleToggleStatus = (id) => {
-    const user = users.find(u => u.id === id);
-    if (user) {
-      updateUser(id, { ...user, status: !user.status });
-      toast.success(`Usuário ${user.status ? 'desativado' : 'ativado'} com sucesso`);
-    }
-  };
-
   const handleEdit = (user) => {
+    setEditingId(user.id);
     setFormData({
       email: user.email,
-      cidade: user.cidade,
-      funcao: user.funcao,
-      status: user.status,
-      senha: '' // Não preenchemos a senha por segurança
+      senha: '', // Senha em branco para edição
+      cidade: user.cidade || '',
+      role: user.role || 'usuario'
     });
-    setEditingId(user.id);
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
-      try {
-        await deleteUser(id);
-        toast.success('Usuário excluído com sucesso');
-      } catch (error) {
-        toast.error('Erro ao excluir usuário');
-      }
-    }
-  };
-
-  const validateForm = () => {
-    if (!formData.email) {
-      toast.error('Email é obrigatório');
-      return false;
-    }
-    if (!formData.email.includes('@')) {
-      toast.error('Email inválido');
-      return false;
-    }
-    if (!editingId && !formData.senha) {
-      toast.error('Senha é obrigatória para novos usuários');
-      return false;
-    }
-    if (!formData.cidade) {
-      toast.error('Cidade é obrigatória');
-      return false;
-    }
-    return true;
-  };
-
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    if (!formData.email || (!editingId && !formData.senha) || !formData.cidade) {
+      toast.error('Por favor, preencha todos os campos obrigatórios');
+      return;
+    }
 
     try {
       if (editingId) {
-        await updateUser(editingId, {
-          ...formData,
-          senha: formData.senha || undefined // Só atualiza a senha se foi fornecida
-        });
-        toast.success('Usuário atualizado com sucesso');
+        // Atualizar usuário existente
+        const userRef = doc(db, 'usuarios', editingId);
+        const updateData = {
+          cidade: formData.cidade,
+          role: formData.role
+        };
+        
+        await updateDoc(userRef, updateData);
+        toast.success('Usuário atualizado com sucesso!');
       } else {
-        await addUser({
-          ...formData,
-          id: Date.now(),
-          dataCriacao: new Date().toLocaleDateString('pt-BR')
+        // Criar novo usuário
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          formData.email,
+          formData.senha
+        );
+
+        await addDoc(collection(db, 'usuarios'), {
+          email: formData.email,
+          cidade: formData.cidade,
+          role: formData.role,
+          disabled: false,
+          dataCriacao: new Date()
         });
-        toast.success('Usuário cadastrado com sucesso');
+
+        toast.success('Usuário criado com sucesso!');
       }
+
       setShowModal(false);
-      resetForm();
+      setEditingId(null);
+      setFormData({
+        email: '',
+        senha: '',
+        cidade: '',
+        role: 'usuario'
+      });
+      fetchUsers();
     } catch (error) {
+      console.error('Erro ao salvar usuário:', error);
       toast.error(error.message || 'Erro ao salvar usuário');
     }
   };
+
+  if (loading) {
+    return <div>Carregando...</div>;
+  }
 
   return (
     <MainContent>
       <Title>Gerenciar Usuários</Title>
       <Button onClick={() => {
-        resetForm();
+        setEditingId(null);
+        setFormData({
+          email: '',
+          senha: '',
+          cidade: '',
+          role: 'usuario'
+        });
         setShowModal(true);
-      }}>NOVO USUÁRIO</Button>
+      }}>
+        NOVO USUÁRIO
+      </Button>
 
       <Table>
         <thead>
@@ -275,97 +340,107 @@ function GerenciarUsuarios() {
         </thead>
         <tbody>
           {users.map(user => (
-            <motion.tr
-              key={user.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
+            <tr key={user.id}>
               <Td>{user.email}</Td>
-              <Td>{user.cidade}</Td>
-              <Td>{user.funcao === 'admin' ? 'Administrador' : 'Usuário'}</Td>
-              <Td>{user.dataCriacao}</Td>
+              <Td>{user.cidade || 'N/A'}</Td>
+              <Td>{user.role || 'N/A'}</Td>
               <Td>
-                <StatusToggle
-                  $active={user.status}
-                  onClick={() => handleToggleStatus(user.id)}
-                />
+                {user.dataCriacao?.seconds 
+                  ? new Date(user.dataCriacao.seconds * 1000).toLocaleDateString() 
+                  : 'N/A'}
               </Td>
               <Td>
-                <ActionButton onClick={() => handleEdit(user)}>
+                <ToggleSwitch>
+                  <input
+                    type="checkbox"
+                    checked={!user.disabled}
+                    onChange={() => handleStatusChange(user.id, user.disabled)}
+                  />
+                  <span />
+                </ToggleSwitch>
+              </Td>
+              <Td>
+                <ActionButton 
+                  $variant="edit" 
+                  onClick={() => handleEdit(user)}
+                >
                   Editar
                 </ActionButton>
-                <ActionButton delete onClick={() => handleDelete(user.id)}>
+                <ActionButton 
+                  $variant="delete" 
+                  onClick={() => handleDelete(user.id)}
+                >
                   Excluir
                 </ActionButton>
               </Td>
-            </motion.tr>
+            </tr>
           ))}
         </tbody>
       </Table>
 
-      <AnimatePresence>
-        {showModal && (
-          <Modal>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
+      {showModal && (
+        <Modal>
+          <ModalContent>
+            <h2>{editingId ? 'Editar Usuário' : 'Novo Usuário'}</h2>
+            <Input
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={handleInputChange}
+              disabled={editingId} // Email não pode ser editado
+            />
+            {!editingId && (
+              <Input
+                type="password"
+                name="senha"
+                placeholder="Senha"
+                value={formData.senha}
+                onChange={handleInputChange}
+              />
+            )}
+            <Select
+              name="cidade"
+              value={formData.cidade}
+              onChange={handleInputChange}
             >
-              <ModalContent>
-                <h2>{editingId ? 'Editar Usuário' : 'Novo Usuário'}</h2>
-                <Input
-                  type="email"
-                  name="email"
-                  placeholder="Email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                />
-                <Input
-                  type="password"
-                  name="senha"
-                  placeholder={editingId ? 'Nova senha (opcional)' : 'Senha'}
-                  value={formData.senha}
-                  onChange={handleInputChange}
-                />
-                <Select
-                  name="cidade"
-                  value={formData.cidade}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Selecione uma cidade</option>
-                  <option value="Alto Rio Novo">Alto Rio Novo</option>
-                  <option value="Central de Minas">Central de Minas</option>
-                  <option value="Mantena">Mantena</option>
-                  <option value="Mantenópolis">Mantenópolis</option>
-                  <option value="São João de Mantena">São João de Mantena</option>
-                </Select>
-                <Select
-                  name="funcao"
-                  value={formData.funcao}
-                  onChange={handleInputChange}
-                >
-                  <option value="usuario">Usuário</option>
-                  <option value="admin">Administrador</option>
-                </Select>
-                <ModalButtons>
-                  <ModalButton cancel onClick={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}>
-                    Cancelar
-                  </ModalButton>
-                  <ModalButton onClick={handleSubmit}>
-                    {editingId ? 'Atualizar' : 'Cadastrar'}
-                  </ModalButton>
-                </ModalButtons>
-              </ModalContent>
-            </motion.div>
-          </Modal>
-        )}
-      </AnimatePresence>
+              <option value="">Selecione uma cidade</option>
+              <option value="Alto Rio Novo">Alto Rio Novo</option>
+              <option value="Central de Minas">Central de Minas</option>
+              <option value="Mantena">Mantena</option>
+              <option value="Mantenópolis">Mantenópolis</option>
+              <option value="São João de Mantena">São João de Mantena</option>
+            </Select>
+            <Select
+              name="role"
+              value={formData.role}
+              onChange={handleInputChange}
+            >
+              <option value="usuario">Usuário</option>
+              <option value="admin">Administrador</option>
+            </Select>
+            <ModalButtons>
+              <ModalButton $cancel onClick={() => {
+                setShowModal(false);
+                setEditingId(null);
+                setFormData({
+                  email: '',
+                  senha: '',
+                  cidade: '',
+                  role: 'usuario'
+                });
+              }}>
+                Cancelar
+              </ModalButton>
+              <ModalButton onClick={handleSubmit}>
+                {editingId ? 'Atualizar' : 'Cadastrar'}
+              </ModalButton>
+            </ModalButtons>
+          </ModalContent>
+        </Modal>
+      )}
     </MainContent>
   );
-}
+};
 
 export default GerenciarUsuarios;

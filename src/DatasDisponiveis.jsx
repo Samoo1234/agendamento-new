@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import useStore from './store/useStore';
 import toast from 'react-hot-toast';
+import { FaCog, FaTrash } from 'react-icons/fa';
+import ConfigurarHorariosModal from './components/ConfigurarHorariosModal';
 
 const MainContent = styled.div`
-  width: 100%;
+  padding: 20px;
 `;
 
 const Title = styled.h1`
@@ -16,34 +18,31 @@ const FormContainer = styled.div`
   background: white;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
-  display: flex;
-  gap: 15px;
-  align-items: flex-end;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
 `;
 
 const InputGroup = styled.div`
-  flex: 1;
+  display: flex;
+  flex-direction: column;
 `;
 
 const Label = styled.label`
-  display: block;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   color: #666;
-  font-size: 14px;
 `;
 
-const Input = styled.input`
-  width: 100%;
+const Select = styled.select`
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
 `;
 
-const Select = styled.select`
-  width: 100%;
+const Input = styled.input`
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -59,6 +58,7 @@ const Button = styled.button`
   cursor: pointer;
   font-size: 14px;
   height: 35px;
+  align-self: flex-end;
 
   &:hover {
     background-color: #000066;
@@ -76,28 +76,66 @@ const Table = styled.table`
 const Th = styled.th`
   text-align: left;
   padding: 12px;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid #eee;
   color: #333;
 `;
 
 const Td = styled.td`
   padding: 12px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #eee;
   color: #666;
 `;
 
 const ActionButton = styled.button`
-  padding: 4px 8px;
+  padding: 6px;
   margin: 0 4px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
   background-color: ${props => props.delete ? '#ff4444' : '#000080'};
   color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
 
   &:hover {
     background-color: ${props => props.delete ? '#cc0000' : '#000066'};
+  }
+`;
+
+const ActionsContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const DateContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+
+const ConfigButton = styled.button`
+  background: none;
+  border: none;
+  color: #1a237e;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: rgba(26, 35, 126, 0.1);
+  }
+
+  &:disabled {
+    color: #ccc;
+    cursor: not-allowed;
   }
 `;
 
@@ -108,6 +146,9 @@ function DatasDisponiveis() {
     data: ''
   });
   const [editingId, setEditingId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCidade, setSelectedCidade] = useState(null);
+  
   const { 
     cities, 
     doctors,
@@ -115,10 +156,16 @@ function DatasDisponiveis() {
     addAvailableDate, 
     updateAvailableDate, 
     deleteAvailableDate, 
-    setIsLoading 
+    setIsLoading,
+    scheduleConfigs,
+    saveScheduleConfig,
+    getScheduleConfig,
+    fetchScheduleConfigs
   } = useStore();
 
-  const filteredDoctors = doctors;
+  useEffect(() => {
+    fetchScheduleConfigs();
+  }, [fetchScheduleConfigs]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -145,7 +192,6 @@ function DatasDisponiveis() {
       }
 
       const dateData = {
-        ...formData,
         cidade: selectedCity.name,
         medico: selectedDoctor.name,
         data: formData.data.split('-').reverse().join('/'),
@@ -168,6 +214,39 @@ function DatasDisponiveis() {
     }
   };
 
+  const handleConfigureHorarios = async (cidade) => {
+    const cityId = cities.find(c => c.name === cidade)?.id;
+    if (cityId) {
+      const config = await getScheduleConfig(cityId.toString());
+      setSelectedCidade(cidade);
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleSaveHorarios = async (configuracao) => {
+    try {
+      const cityId = cities.find(c => c.name === configuracao.cidade)?.id.toString();
+      if (cityId) {
+        await saveScheduleConfig(cityId, configuracao);
+        toast.success('Horários configurados com sucesso!');
+      }
+    } catch (error) {
+      toast.error('Erro ao salvar configuração de horários');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      setIsLoading(true);
+      await deleteAvailableDate(id);
+      toast.success('Data excluída com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao excluir data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <MainContent>
       <Title>Gerenciar Datas Disponíveis</Title>
@@ -177,10 +256,7 @@ function DatasDisponiveis() {
           <Select
             name="cidade"
             value={formData.cidade}
-            onChange={(e) => {
-              handleInputChange(e);
-              setFormData(prev => ({ ...prev, medico: '' }));
-            }}
+            onChange={handleInputChange}
           >
             <option value="">Selecione uma cidade</option>
             {cities.map(city => (
@@ -200,7 +276,7 @@ function DatasDisponiveis() {
             disabled={!formData.cidade}
           >
             <option value="">Selecione um médico</option>
-            {filteredDoctors.map(doctor => (
+            {doctors.map(doctor => (
               <option key={doctor.id} value={doctor.id}>
                 {doctor.name}
               </option>
@@ -215,12 +291,11 @@ function DatasDisponiveis() {
             name="data"
             value={formData.data}
             onChange={handleInputChange}
-            min={new Date().toISOString().split('T')[0]}
           />
         </InputGroup>
 
         <Button onClick={handleSubmit}>
-          {editingId ? 'ATUALIZAR' : 'CADASTRAR'}
+          {editingId ? 'ATUALIZAR' : 'CADASTRAR DATA'}
         </Button>
       </FormContainer>
 
@@ -228,8 +303,8 @@ function DatasDisponiveis() {
         <thead>
           <tr>
             <Th>Cidade</Th>
-            <Th>Médico</Th>
             <Th>Data</Th>
+            <Th>Médico</Th>
             <Th>Status</Th>
             <Th>Ações</Th>
           </tr>
@@ -238,40 +313,36 @@ function DatasDisponiveis() {
           {availableDates.map((date) => (
             <tr key={date.id}>
               <Td>{date.cidade}</Td>
-              <Td>{date.medico}</Td>
               <Td>{date.data}</Td>
+              <Td>{date.medico}</Td>
               <Td>{date.status}</Td>
               <Td>
-                <ActionButton onClick={() => {
-                  const city = cities.find(c => c.name === date.cidade);
-                  const doctor = doctors.find(d => d.name === date.medico);
-                  setFormData({
-                    cidade: city?.id.toString() || '',
-                    medico: doctor?.id.toString() || '',
-                    data: date.data.split('/').reverse().join('-')
-                  });
-                  setEditingId(date.id);
-                }}>
-                  Editar
-                </ActionButton>
-                <ActionButton delete onClick={async () => {
-                  try {
-                    setIsLoading(true);
-                    await deleteAvailableDate(date.id);
-                    toast.success('Data excluída com sucesso!');
-                  } catch (error) {
-                    toast.error('Erro ao excluir data');
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}>
-                  Excluir
-                </ActionButton>
+                <ActionsContainer>
+                  <ActionButton
+                    onClick={() => handleConfigureHorarios(date.cidade)}
+                  >
+                    <FaCog />
+                  </ActionButton>
+                  <ActionButton
+                    delete
+                    onClick={() => handleDelete(date.id)}
+                  >
+                    <FaTrash />
+                  </ActionButton>
+                </ActionsContainer>
               </Td>
             </tr>
           ))}
         </tbody>
       </Table>
+
+      <ConfigurarHorariosModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        cidade={selectedCidade}
+        onSave={handleSaveHorarios}
+        initialConfig={selectedCidade ? scheduleConfigs[cities.find(c => c.name === selectedCidade)?.id] : null}
+      />
     </MainContent>
   );
 }

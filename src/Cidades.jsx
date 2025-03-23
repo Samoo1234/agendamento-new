@@ -79,57 +79,73 @@ const ActionButton = styled.button`
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  background-color: ${props => props.delete ? '#ff4444' : '#000033'};
+  background-color: ${props => props.$isDelete ? '#ff4444' : '#000033'};
   color: white;
 
   &:hover {
-    background-color: ${props => props.delete ? '#cc0000' : 'rgba(0, 0, 51, 0.9)'};
+    background-color: ${props => props.$isDelete ? '#cc0000' : 'rgba(0, 0, 51, 0.9)'};
   }
 `;
 
 const Cidades = () => {
   const [nomeCidade, setNomeCidade] = useState('');
   const [editingId, setEditingId] = useState(null);
-  const { cities, setCities, addCity, updateCity, deleteCity, setIsLoading } = useStore();
+  const { cities, fetchCities, addCity, updateCity, deleteCity, setIsLoading } = useStore();
 
   useEffect(() => {
-    const mockCities = [
-      { id: 1, name: 'Alto Rio Novo' },
-      { id: 2, name: 'Central de Minas' },
-      { id: 3, name: 'Mantena' },
-      { id: 4, name: 'Mantenópolis' },
-      { id: 5, name: 'São João de Mantena' }
-    ];
-    setCities(mockCities);
-  }, []);
+    fetchCities().then(() => {
+      // Log mais detalhado para ver a estrutura exata dos objetos
+      console.log('Dados das cidades (detalhado):', JSON.stringify(cities, null, 2));
+      // Verificar cada objeto individualmente
+      cities.forEach((city, index) => {
+        console.log(`Cidade ${index}:`, city);
+        console.log(`Propriedades da cidade ${index}:`, Object.keys(city));
+      });
+    });
+  }, [fetchCities]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!nomeCidade) {
-      toast.error('Por favor, preencha o nome da cidade');
+    if (!nomeCidade.trim()) {
+      toast.error('Digite o nome da cidade');
       return;
     }
 
     setIsLoading(true);
     try {
-      const cityData = {
-        name: nomeCidade,
-        id: editingId || Date.now()
-      };
-
       if (editingId) {
-        await updateCity(editingId, cityData);
+        await updateCity(editingId, { name: nomeCidade });
         toast.success('Cidade atualizada com sucesso!');
         setEditingId(null);
       } else {
-        await addCity(cityData);
+        await addCity({ name: nomeCidade });
         toast.success('Cidade cadastrada com sucesso!');
       }
       setNomeCidade('');
     } catch (error) {
-      toast.error('Erro ao salvar cidade');
+      toast.error(error.message || 'Erro ao salvar cidade');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEdit = (city) => {
+    setEditingId(city.id);
+    setNomeCidade(city.name || city.nome || '');
+    console.log('Editando cidade:', city);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Tem certeza que deseja excluir esta cidade?')) {
+      setIsLoading(true);
+      try {
+        await deleteCity(id);
+        toast.success('Cidade excluída com sucesso!');
+      } catch (error) {
+        toast.error('Erro ao excluir cidade');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -140,49 +156,41 @@ const Cidades = () => {
         <InputGroup>
           <Input
             type="text"
+            placeholder="Nome da cidade"
             value={nomeCidade}
             onChange={(e) => setNomeCidade(e.target.value)}
-            placeholder="Nome da Cidade *"
           />
         </InputGroup>
-        <Button onClick={handleSubmit}>CADASTRAR CIDADE</Button>
+        <Button onClick={handleSubmit}>
+          {editingId ? 'ATUALIZAR' : 'CADASTRAR'}
+        </Button>
       </FormContainer>
 
       <Table>
         <thead>
           <tr>
-            <Th>Nome</Th>
+            <Th>Cidade</Th>
             <Th>Ações</Th>
           </tr>
         </thead>
         <tbody>
           {cities.map((city) => (
             <tr key={city.id}>
-              <Td>{city.name}</Td>
+              <Td>{city.name || city.nome || JSON.stringify(city)}</Td>
               <Td>
-                <ActionButton onClick={() => {
-                  setNomeCidade(city.name);
-                  setEditingId(city.id);
-                }}>Editar</ActionButton>
-                <ActionButton delete onClick={async () => {
-                  try {
-                    setIsLoading(true);
-                    await deleteCity(city.id);
-                    toast.success('Cidade excluída com sucesso!');
-                  } catch (error) {
-                    toast.error('Erro ao excluir cidade');
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}>Excluir</ActionButton>
+                <ActionButton $isDelete={false} onClick={() => handleEdit(city)}>
+                  Editar
+                </ActionButton>
+                <ActionButton $isDelete={true} onClick={() => handleDelete(city.id)}>
+                  Excluir
+                </ActionButton>
               </Td>
             </tr>
           ))}
         </tbody>
       </Table>
-
     </MainContent>
   );
-}
+};
 
 export default Cidades;
