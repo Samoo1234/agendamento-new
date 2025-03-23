@@ -82,6 +82,23 @@ export const getDoctors = async () => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+export const getDoctorById = async (id) => {
+  try {
+    const docRef = doc(db, 'medicos', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() };
+    } else {
+      console.log('Médico não encontrado com ID:', id);
+      return null;
+    }
+  } catch (error) {
+    console.error('Erro ao buscar médico por ID:', error);
+    throw error;
+  }
+};
+
 export const addDoctor = async (doctorData) => {
   const docRef = await addDoc(collection(db, 'medicos'), doctorData);
   return { id: docRef.id, ...doctorData };
@@ -101,27 +118,29 @@ export const deleteDoctor = async (id) => {
 // Cidades
 export const getCities = async () => {
   const querySnapshot = await getDocs(collection(db, 'cidades'));
-  return querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    // Garantir que sempre tenhamos uma propriedade 'name' consistente
-    return { 
-      id: doc.id, 
-      ...data,
-      // Se não existir 'name', usar 'nome' ou criar um valor vazio
-      name: data.name || data.nome || ''
-    };
-  });
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const getCityById = async (id) => {
+  try {
+    const docRef = doc(db, 'cidades', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() };
+    } else {
+      console.log('Cidade não encontrada com ID:', id);
+      return null;
+    }
+  } catch (error) {
+    console.error('Erro ao buscar cidade por ID:', error);
+    throw error;
+  }
 };
 
 export const addCity = async (cityData) => {
-  // Garantir que estamos usando a propriedade 'name' consistentemente
-  const normalizedData = {
-    ...cityData,
-    // Adicionar 'nome' como cópia de 'name' para compatibilidade
-    nome: cityData.name || cityData.nome || ''
-  };
-  const docRef = await addDoc(collection(db, 'cidades'), normalizedData);
-  return { id: docRef.id, ...normalizedData };
+  const docRef = await addDoc(collection(db, 'cidades'), cityData);
+  return { id: docRef.id, ...cityData };
 };
 
 export const updateCity = async (id, cityData) => {

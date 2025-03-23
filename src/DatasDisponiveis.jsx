@@ -4,6 +4,7 @@ import useStore from './store/useStore';
 import toast from 'react-hot-toast';
 import { FaCog, FaTrash } from 'react-icons/fa';
 import ConfigurarHorariosModal from './components/ConfigurarHorariosModal';
+import * as firebaseService from './services/firebaseService';
 
 const MainContent = styled.div`
   padding: 20px;
@@ -184,25 +185,32 @@ function DatasDisponiveis() {
 
     setIsLoading(true);
     try {
-      // Modificando a lógica de busca para usar o valor diretamente, não o ID
-      const selectedCity = cities.find(c => c.name === formData.cidade) || 
-                          cities.find(c => c.id === parseInt(formData.cidade));
-      const selectedDoctor = doctors.find(d => d.name === formData.medico) || 
-                            doctors.find(d => d.id === parseInt(formData.medico));
+      // Os valores do formulário são IDs do Firestore
+      const cidadeId = formData.cidade;
+      const medicoId = formData.medico;
       
       console.log('Cidades disponíveis:', cities);
       console.log('Médicos disponíveis:', doctors);
-      console.log('Cidade selecionada:', selectedCity);
-      console.log('Médico selecionado:', selectedDoctor);
+      console.log('ID da cidade selecionada:', cidadeId);
+      console.log('ID do médico selecionado:', medicoId);
       console.log('Formulário:', formData);
       
-      if (!selectedCity || !selectedDoctor) {
+      // Buscar documentos diretamente do Firestore usando os IDs
+      const cidadeDoc = await firebaseService.getCityById(cidadeId);
+      const medicoDoc = await firebaseService.getDoctorById(medicoId);
+      
+      console.log('Documento da cidade:', cidadeDoc);
+      console.log('Documento do médico:', medicoDoc);
+      
+      if (!cidadeDoc || !medicoDoc) {
         throw new Error('Cidade ou médico não encontrado');
       }
 
       const dateData = {
-        cidade: selectedCity.name,
-        medico: selectedDoctor.name,
+        cidade: cidadeDoc.name || cidadeDoc.nome,
+        cidadeId: cidadeId,
+        medico: medicoDoc.name || medicoDoc.nome,
+        medicoId: medicoId,
         data: formData.data.split('-').reverse().join('/'),
         status: 'Disponível'
       };
