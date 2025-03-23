@@ -155,21 +155,36 @@ const GerenciarClientes = () => {
   };
 
   const generatePDF = () => {
-    const doc = new jsPDF();
+    // Criar documento PDF no formato paisagem para melhor visualização da tabela
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
     
     // Configurações
     const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 10;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
     let yPos = margin;
     const lineHeight = 7;
     
-    // Título
-    doc.setFontSize(16);
-    doc.text('Relatório de Agendamentos', margin, yPos);
-    yPos += lineHeight * 2;
-
-    // Filtros aplicados
-    doc.setFontSize(10);
+    // Adicionar cabeçalho com estilo
+    doc.setFillColor(0, 32, 96); // Azul escuro
+    doc.rect(0, 0, pageWidth, 20, 'F');
+    
+    // Título com estilo
+    doc.setTextColor(255, 255, 255); // Texto branco
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('Relatório de Agendamentos', pageWidth / 2, 12, { align: 'center' });
+    
+    // Resetar cor de texto para preto
+    doc.setTextColor(0, 0, 0);
+    yPos = 30;
+    
+    // Filtros aplicados com estilo
+    doc.setFontSize(11);
     let filterText = 'Filtros: ';
     if (cidadeFiltro) filterText += `Cidade: ${cidadeFiltro} | `;
     if (dataFiltro) filterText += `Data: ${dataFiltro} | `;
@@ -179,44 +194,80 @@ const GerenciarClientes = () => {
       yPos += lineHeight * 1.5;
     }
 
-    // Cabeçalho da tabela
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.text('Nome', margin, yPos);
-    doc.text('Cidade', margin + 50, yPos);
-    doc.text('Data', margin + 80, yPos);
-    doc.text('Horário', margin + 110, yPos);
-    doc.text('Status', margin + 140, yPos);
+    // Linha separadora após filtros
+    doc.setDrawColor(0, 32, 96); // Azul escuro
+    doc.setLineWidth(0.5);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
     yPos += lineHeight;
 
-    // Linha separadora
-    doc.line(margin, yPos - 2, pageWidth - margin, yPos - 2);
-    yPos += lineHeight / 2;
+    // Cabeçalho da tabela com estilo
+    doc.setFillColor(240, 240, 240); // Cinza claro
+    doc.rect(margin, yPos - 5, pageWidth - (margin * 2), 8, 'F');
+    
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text('Nome', margin + 5, yPos);
+    doc.text('Cidade', margin + 65, yPos);
+    doc.text('Data', margin + 115, yPos);
+    doc.text('Horário', margin + 150, yPos);
+    doc.text('Status', margin + 185, yPos);
+    yPos += lineHeight + 2;
 
-    // Dados
+    // Dados com linhas alternadas para melhor legibilidade
     doc.setFont(undefined, 'normal');
-    agendamentosFiltrados.forEach(agendamento => {
+    doc.setFontSize(10);
+    
+    agendamentosFiltrados.forEach((agendamento, index) => {
       // Verifica se precisa criar nova página
-      if (yPos > doc.internal.pageSize.getHeight() - 20) {
+      if (yPos > pageHeight - 25) {
         doc.addPage();
         yPos = margin + lineHeight;
+        
+        // Repete o cabeçalho na nova página
+        doc.setFillColor(240, 240, 240);
+        doc.rect(margin, yPos - 5, pageWidth - (margin * 2), 8, 'F');
+        
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text('Nome', margin + 5, yPos);
+        doc.text('Cidade', margin + 65, yPos);
+        doc.text('Data', margin + 115, yPos);
+        doc.text('Horário', margin + 150, yPos);
+        doc.text('Status', margin + 185, yPos);
+        yPos += lineHeight + 2;
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
       }
 
-      doc.text(agendamento.nome?.substring(0, 25) || '', margin, yPos);
-      doc.text(agendamento.cidade || '', margin + 50, yPos);
-      doc.text(agendamento.data || '', margin + 80, yPos);
-      doc.text(agendamento.horario || '', margin + 110, yPos);
-      doc.text(agendamento.status || '', margin + 140, yPos);
+      // Adicionar fundo cinza claro para linhas alternadas
+      if (index % 2 === 0) {
+        doc.setFillColor(248, 248, 248);
+        doc.rect(margin, yPos - 5, pageWidth - (margin * 2), 7, 'F');
+      }
+
+      doc.text(agendamento.nome?.substring(0, 30) || '', margin + 5, yPos);
+      doc.text(agendamento.cidade || '', margin + 65, yPos);
+      doc.text(agendamento.data || '', margin + 115, yPos);
+      doc.text(agendamento.horario || '', margin + 150, yPos);
+      doc.text(agendamento.status || '', margin + 185, yPos);
       yPos += lineHeight;
     });
 
-    // Data de geração
-    yPos = doc.internal.pageSize.getHeight() - 10;
+    // Rodapé com informações e linha separadora
+    const footerPosition = pageHeight - 10;
+    
+    // Linha separadora do rodapé
+    doc.setDrawColor(0, 32, 96);
+    doc.line(margin, footerPosition - 5, pageWidth - margin, footerPosition - 5);
+    
+    // Data de geração e número de página
     doc.setFontSize(8);
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, margin, yPos);
+    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, margin, footerPosition);
+    doc.text(`Total de agendamentos: ${agendamentosFiltrados.length}`, pageWidth - margin, footerPosition, { align: 'right' });
 
-    // Salvar PDF
-    doc.save('agendamentos.pdf');
+    // Salvar PDF com nome mais descritivo
+    const fileName = `agendamentos${dataFiltro ? '_' + dataFiltro : ''}${cidadeFiltro ? '_' + cidadeFiltro : ''}.pdf`;
+    doc.save(fileName);
     toast.success('PDF gerado com sucesso!');
   };
 
