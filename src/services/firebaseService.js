@@ -1,15 +1,17 @@
+import { initializeApp } from 'firebase/app';
 import { 
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
+  getFirestore, 
+  collection, 
+  getDocs, 
+  getDoc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
   query,
   where,
-  getDoc,
-  setDoc,
-  writeBatch
+  writeBatch,
+  setDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -276,7 +278,43 @@ export const getAppointments = async () => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+export const checkTimeAvailability = async (cidade, data, horario) => {
+  try {
+    console.log(`Verificando disponibilidade para: Cidade=${cidade}, Data=${data}, Horário=${horario}`);
+    
+    // Consulta para verificar se já existe um agendamento com a mesma cidade, data e horário
+    const appointmentsRef = collection(db, 'agendamentos');
+    const q = query(
+      appointmentsRef,
+      where('cidade', '==', cidade),
+      where('data', '==', data),
+      where('horario', '==', horario),
+      where('status', '==', 'Agendado')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const isAvailable = querySnapshot.empty;
+    
+    console.log(`Horário ${isAvailable ? 'disponível' : 'já agendado'}`);
+    return isAvailable;
+  } catch (error) {
+    console.error('Erro ao verificar disponibilidade de horário:', error);
+    throw error;
+  }
+};
+
 export const addAppointment = async (appointmentData) => {
+  // Verificar se o horário está disponível antes de criar o agendamento
+  const isAvailable = await checkTimeAvailability(
+    appointmentData.cidade,
+    appointmentData.data,
+    appointmentData.horario
+  );
+  
+  if (!isAvailable) {
+    throw new Error('Este horário já está agendado. Por favor, escolha outro horário.');
+  }
+  
   const docRef = await addDoc(collection(db, 'agendamentos'), appointmentData);
   return { id: docRef.id, ...appointmentData };
 };

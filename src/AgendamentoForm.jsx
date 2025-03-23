@@ -264,7 +264,15 @@ function AgendamentoForm() {
       setErrors({});
     } catch (error) {
       console.error('Erro ao agendar consulta:', error);
-      toast.error(error.message || 'Erro ao agendar consulta');
+      
+      // Verificar se é um erro de horário já agendado
+      if (error.message && error.message.includes('horário já está agendado')) {
+        toast.error(error.message);
+        // Destacar o campo de horário com erro
+        setErrors(prev => ({ ...prev, time: 'Este horário já está agendado' }));
+      } else {
+        toast.error(error.message || 'Erro ao agendar consulta');
+      }
     }
   };
 
