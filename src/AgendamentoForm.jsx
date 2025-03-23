@@ -240,7 +240,17 @@ function AgendamentoForm() {
     if (!selectedDate) errors.date = 'Selecione uma data';
     if (!selectedTime) errors.time = 'Selecione um horário';
     if (!name.trim()) errors.name = 'Digite seu nome';
-    if (!phone.trim()) errors.phone = 'Digite seu telefone';
+    
+    // Validação de telefone
+    if (!phone.trim()) {
+      errors.phone = 'Digite seu telefone';
+    } else {
+      // Remove caracteres não numéricos para verificar o comprimento
+      const phoneDigits = phone.replace(/\D/g, '');
+      if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+        errors.phone = 'Telefone deve ter 10 ou 11 dígitos (com DDD)';
+      }
+    }
 
     if (Object.keys(errors).length > 0) {
       setErrors(errors);
@@ -301,6 +311,34 @@ function AgendamentoForm() {
       } else {
         toast.error(error.message || 'Erro ao agendar consulta');
       }
+    }
+  };
+
+  // Função para formatar o telefone
+  const formatPhoneNumber = (value) => {
+    // Remove todos os caracteres não numéricos
+    const phoneDigits = value.replace(/\D/g, '');
+    
+    // Aplica a formatação dependendo do comprimento
+    if (phoneDigits.length <= 2) {
+      return phoneDigits;
+    } else if (phoneDigits.length <= 6) {
+      return `(${phoneDigits.slice(0, 2)}) ${phoneDigits.slice(2)}`;
+    } else if (phoneDigits.length <= 10) {
+      return `(${phoneDigits.slice(0, 2)}) ${phoneDigits.slice(2, 6)}-${phoneDigits.slice(6, 10)}`;
+    } else {
+      return `(${phoneDigits.slice(0, 2)}) ${phoneDigits.slice(2, 7)}-${phoneDigits.slice(7, 11)}`;
+    }
+  };
+  
+  // Handler para mudança no campo de telefone
+  const handlePhoneChange = (e) => {
+    const formattedPhone = formatPhoneNumber(e.target.value);
+    setPhone(formattedPhone);
+    
+    // Limpa o erro se o campo for preenchido corretamente
+    if (errors.phone && formattedPhone.replace(/\D/g, '').length >= 10) {
+      setErrors(prev => ({ ...prev, phone: undefined }));
     }
   };
 
@@ -407,7 +445,7 @@ function AgendamentoForm() {
             type="tel"
             placeholder="Telefone"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={handlePhoneChange}
             error={errors.phone}
           />
           {errors.phone && <ErrorText>{errors.phone}</ErrorText>}
