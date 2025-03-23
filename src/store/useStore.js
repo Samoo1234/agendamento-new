@@ -261,6 +261,20 @@ const useStore = create(
           set({ isLoading: false });
         }
       },
+      createAppointment: async (appointmentData) => {
+        try {
+          set({ isLoading: true });
+          const newAppointment = await firebaseService.addAppointment(appointmentData);
+          set((state) => ({ appointments: [...state.appointments, newAppointment] }));
+          return newAppointment;
+        } catch (error) {
+          console.error('Erro ao criar agendamento:', error);
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
       updateAppointment: async (id, appointmentData) => {
         try {
           set({ isLoading: true });
