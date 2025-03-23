@@ -69,10 +69,13 @@ const useStore = create(
       doctors: [],
       fetchDoctors: async () => {
         try {
+          console.log('Buscando médicos...');
           set({ isLoading: true });
           const doctors = await firebaseService.getDoctors();
+          console.log('Médicos encontrados:', doctors);
           set({ doctors });
         } catch (error) {
+          console.error('Erro ao buscar médicos:', error);
           set({ error: error.message });
         } finally {
           set({ isLoading: false });
@@ -123,10 +126,13 @@ const useStore = create(
       cities: [],
       fetchCities: async () => {
         try {
+          console.log('Buscando cidades...');
           set({ isLoading: true });
           const cities = await firebaseService.getCities();
+          console.log('Cidades encontradas:', cities);
           set({ cities });
         } catch (error) {
+          console.error('Erro ao buscar cidades:', error);
           set({ error: error.message });
         } finally {
           set({ isLoading: false });
@@ -177,10 +183,13 @@ const useStore = create(
       availableDates: [],
       fetchAvailableDates: async () => {
         try {
+          console.log('Buscando datas disponíveis...');
           set({ isLoading: true });
           const dates = await firebaseService.getAvailableDates();
+          console.log('Datas encontradas:', dates);
           set({ availableDates: dates });
         } catch (error) {
+          console.error('Erro ao buscar datas disponíveis:', error);
           set({ error: error.message });
         } finally {
           set({ isLoading: false });
