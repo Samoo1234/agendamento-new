@@ -195,7 +195,35 @@ function AgendamentoForm() {
           addTimeSlots(cityConfig.horarios.tardeInicio, cityConfig.horarios.tardeFim, cityConfig.intervalo);
         }
 
-        setAvailableTimes(slots);
+        // Buscar horários já agendados e filtrar da lista
+        const fetchBookedTimes = async () => {
+          try {
+            // Buscar cidade e data pelo ID
+            const cityDoc = await firebaseService.getCityById(selectedCity);
+            const dateDoc = await firebaseService.getAvailableDateById(selectedDate);
+            
+            if (cityDoc && dateDoc) {
+              const cityName = cityDoc.name || cityDoc.nome;
+              const dateString = dateDoc.data;
+              
+              // Buscar horários já agendados
+              const bookedTimes = await firebaseService.getBookedTimes(cityName, dateString);
+              
+              // Filtrar os horários disponíveis, removendo os já agendados
+              const availableSlots = slots.filter(slot => !bookedTimes.includes(slot));
+              
+              console.log(`Total de horários: ${slots.length}, Disponíveis: ${availableSlots.length}`);
+              setAvailableTimes(availableSlots);
+            } else {
+              setAvailableTimes(slots);
+            }
+          } catch (error) {
+            console.error('Erro ao buscar horários agendados:', error);
+            setAvailableTimes(slots);
+          }
+        };
+        
+        fetchBookedTimes();
       } else {
         setAvailableTimes([]);
       }

@@ -353,3 +353,27 @@ export const getAllScheduleConfigs = async () => {
     ...doc.data()
   }));
 };
+
+export const getBookedTimes = async (cidade, data) => {
+  try {
+    console.log(`Buscando horários já agendados para: Cidade=${cidade}, Data=${data}`);
+    
+    // Consulta para buscar todos os agendamentos da mesma cidade e data
+    const appointmentsRef = collection(db, 'agendamentos');
+    const q = query(
+      appointmentsRef,
+      where('cidade', '==', cidade),
+      where('data', '==', data),
+      where('status', '==', 'Agendado')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const bookedTimes = querySnapshot.docs.map(doc => doc.data().horario);
+    
+    console.log(`Horários já agendados: ${bookedTimes.join(', ') || 'Nenhum'}`);
+    return bookedTimes;
+  } catch (error) {
+    console.error('Erro ao buscar horários agendados:', error);
+    return [];
+  }
+};
