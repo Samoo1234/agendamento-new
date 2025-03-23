@@ -184,8 +184,17 @@ function DatasDisponiveis() {
 
     setIsLoading(true);
     try {
-      const selectedCity = cities.find(c => c.id === parseInt(formData.cidade));
-      const selectedDoctor = doctors.find(d => d.id === parseInt(formData.medico));
+      // Modificando a lógica de busca para usar o valor diretamente, não o ID
+      const selectedCity = cities.find(c => c.name === formData.cidade) || 
+                          cities.find(c => c.id === parseInt(formData.cidade));
+      const selectedDoctor = doctors.find(d => d.name === formData.medico) || 
+                            doctors.find(d => d.id === parseInt(formData.medico));
+      
+      console.log('Cidades disponíveis:', cities);
+      console.log('Médicos disponíveis:', doctors);
+      console.log('Cidade selecionada:', selectedCity);
+      console.log('Médico selecionado:', selectedDoctor);
+      console.log('Formulário:', formData);
       
       if (!selectedCity || !selectedDoctor) {
         throw new Error('Cidade ou médico não encontrado');
