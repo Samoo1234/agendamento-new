@@ -1,8 +1,50 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Regra base: negar acesso a tudo por padrão
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
+    }
+    
+    // Regras para usuários
+    match /usuarios/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (request.auth.uid == userId || 
+                  exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Regras para médicos
+    match /medicos/{doctorId} {
+      allow read: if true; // Leitura pública para mostrar médicos no agendamento
+      allow write: if request.auth != null && 
+                  exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Regras para cidades
+    match /cidades/{cityId} {
+      allow read: if true; // Leitura pública para mostrar cidades no agendamento
+      allow write: if request.auth != null && 
+                  exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Regras para datas disponíveis
+    match /datas_disponiveis/{dateId} {
+      allow read: if true; // Leitura pública para mostrar datas no agendamento
+      allow write: if request.auth != null && 
+                  exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Regras para agendamentos
+    match /agendamentos/{appointmentId} {
+      allow read: if request.auth != null;
+      allow create: if true; // Permitir criação pública para que usuários possam agendar
+      allow update, delete: if request.auth != null && 
+                  exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
     }
   }
 }

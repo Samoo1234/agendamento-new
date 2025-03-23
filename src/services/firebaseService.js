@@ -15,29 +15,35 @@ import { db } from '../config/firebase';
 
 // Autenticação
 export const authenticateUser = async (email, senha) => {
-  const usersRef = collection(db, 'usuarios');
-  const q = query(usersRef, where("email", "==", email));
-  const querySnapshot = await getDocs(q);
-  
-  if (querySnapshot.empty) {
-    throw new Error('Usuário não encontrado');
+  try {
+    const usersRef = collection(db, 'usuarios');
+    const q = query(usersRef, where("email", "==", email));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
+
+    // Convertendo para string para garantir a comparação correta
+    const senhaFornecida = String(senha);
+    const senhaBanco = String(userData.password || userData.senha || '');
+
+    // Removendo logs de senha por segurança
+    // console.log('Senha fornecida:', senhaFornecida);
+    // console.log('Senha no banco:', senhaBanco);
+
+    if (senhaFornecida !== senhaBanco) {
+      throw new Error('Senha incorreta');
+    }
+
+    return { id: userDoc.id, ...userData };
+  } catch (error) {
+    console.error('Erro na autenticação:', error.message);
+    throw error;
   }
-
-  const userDoc = querySnapshot.docs[0];
-  const userData = userDoc.data();
-
-  // Convertendo para string para garantir a comparação correta
-  const senhaFornecida = String(senha);
-  const senhaBanco = String(userData.password || userData.senha || '');
-
-  console.log('Senha fornecida:', senhaFornecida);
-  console.log('Senha no banco:', senhaBanco);
-
-  if (senhaFornecida !== senhaBanco) {
-    throw new Error('Senha incorreta');
-  }
-
-  return { id: userDoc.id, ...userData };
 };
 
 // Usuários
