@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import LogoImage from './assets/logo/logo new.png';
 import { FaUser } from 'react-icons/fa';
+import * as firebaseService from './services/firebaseService'; // Corrigindo o caminho de importação
 
 const Container = styled.div`
   width: 100%;
@@ -219,23 +220,51 @@ function AgendamentoForm() {
     }
 
     try {
-      const selectedCityName = cities.find(c => c.id.toString() === selectedCity)?.name;
-      const selectedDateObj = availableDates.find(date => date.id.toString() === selectedDate);
+      console.log('Tentando agendar consulta com os seguintes dados:');
+      console.log('Cidades disponíveis:', cities);
+      console.log('Datas disponíveis:', availableDates);
+      console.log('ID da cidade selecionada:', selectedCity);
+      console.log('ID da data selecionada:', selectedDate);
       
-      await createAppointment({
-        cidade: selectedCityName,
-        data: selectedDateObj.data,
+      // Buscar cidade e data diretamente do Firestore usando os IDs
+      const cityDoc = await firebaseService.getCityById(selectedCity);
+      const dateDoc = await firebaseService.getAvailableDateById(selectedDate);
+      
+      console.log('Documento da cidade:', cityDoc);
+      console.log('Documento da data:', dateDoc);
+      
+      if (!cityDoc || !dateDoc) {
+        throw new Error('Cidade ou data não encontrada');
+      }
+      
+      const appointmentData = {
+        cidade: cityDoc.name || cityDoc.nome,
+        cidadeId: selectedCity,
+        data: dateDoc.data,
+        dataId: selectedDate,
         horario: selectedTime,
         nome: name,
         telefone: phone,
-        informacoes: additionalInfo,
-        status: 'Agendado'
-      });
+        informacoes: additionalInfo || '',
+        status: 'Agendado',
+        criadoEm: new Date().toISOString()
+      };
+      
+      console.log('Dados do agendamento:', appointmentData);
+      
+      await createAppointment(appointmentData);
 
       toast.success('Consulta agendada com sucesso!');
-      navigate('/');
+      setSelectedCity('');
+      setSelectedDate('');
+      setSelectedTime('');
+      setName('');
+      setPhone('');
+      setAdditionalInfo('');
+      setErrors({});
     } catch (error) {
-      toast.error('Erro ao agendar consulta');
+      console.error('Erro ao agendar consulta:', error);
+      toast.error(error.message || 'Erro ao agendar consulta');
     }
   };
 

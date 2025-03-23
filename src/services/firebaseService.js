@@ -237,6 +237,23 @@ export const getAvailableDates = async () => {
   return dates;
 };
 
+export const getAvailableDateById = async (id) => {
+  try {
+    const docRef = doc(db, 'datas_disponiveis', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() };
+    } else {
+      console.log('Data disponível não encontrada com ID:', id);
+      return null;
+    }
+  } catch (error) {
+    console.error('Erro ao buscar data disponível por ID:', error);
+    throw error;
+  }
+};
+
 export const addAvailableDate = async (dateData) => {
   const docRef = await addDoc(collection(db, 'datas_disponiveis'), dateData);
   return { id: docRef.id, ...dateData };
