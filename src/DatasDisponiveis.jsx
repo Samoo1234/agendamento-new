@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import useStore from './store/useStore';
 import toast from 'react-hot-toast';
-import { FaCog, FaTrash } from 'react-icons/fa';
+import { FaCog, FaTrash, FaEdit } from 'react-icons/fa';
 import ConfigurarHorariosModal from './components/ConfigurarHorariosModal';
 import * as firebaseService from './services/firebaseService';
 
@@ -93,7 +93,7 @@ const ActionButton = styled.button`
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  background-color: ${props => props.delete ? '#ff4444' : '#000080'};
+  background-color: ${props => props.delete ? '#ff4444' : props.edit ? '#008000' : '#000080'};
   color: white;
   display: flex;
   align-items: center;
@@ -102,7 +102,7 @@ const ActionButton = styled.button`
   height: 32px;
 
   &:hover {
-    background-color: ${props => props.delete ? '#cc0000' : '#000066'};
+    background-color: ${props => props.delete ? '#cc0000' : props.edit ? '#00cc00' : '#000066'};
   }
 `;
 
@@ -199,32 +199,49 @@ function DatasDisponiveis() {
       const cidadeDoc = await firebaseService.getCityById(cidadeId);
       const medicoDoc = await firebaseService.getDoctorById(medicoId);
       
-      console.log('Documento da cidade:', cidadeDoc);
-      console.log('Documento do médico:', medicoDoc);
-      
-      if (!cidadeDoc || !medicoDoc) {
-        throw new Error('Cidade ou médico não encontrado');
+      if (!cidadeDoc) {
+        throw new Error(`Cidade com ID ${cidadeId} não encontrada`);
       }
-
+      
+      if (!medicoDoc) {
+        throw new Error(`Médico com ID ${medicoId} não encontrada`);
+      }
+      
+      // Formatar a data para exibição
+      const dataObj = new Date(formData.data);
+      const dataFormatada = dataObj.toLocaleDateString('pt-BR');
+      
+      // Preparar dados para salvar
       const dateData = {
-        cidade: cidadeDoc.name || cidadeDoc.nome,
-        cidadeId: cidadeId,
-        medico: medicoDoc.name || medicoDoc.nome,
-        medicoId: medicoId,
-        data: formData.data.split('-').reverse().join('/'),
-        status: 'Disponível'
+        cidade: cidadeDoc.name,
+        medico: medicoDoc.name,
+        data: dataFormatada,
+        dataOriginal: formData.data, // Guardar o formato original para edição
+        cidadeId,
+        medicoId,
+        status: 'Disponível',
+        createdAt: new Date().toISOString()
       };
 
       if (editingId) {
+        // Modo de edição - atualizar data existente
         await updateAvailableDate(editingId, dateData);
         toast.success('Data atualizada com sucesso!');
-        setEditingId(null);
+        setEditingId(null); // Sair do modo de edição
       } else {
+        // Modo de criação - adicionar nova data
         await addAvailableDate(dateData);
         toast.success('Data cadastrada com sucesso!');
       }
-      setFormData({ cidade: '', medico: '', data: '' });
+      
+      // Limpar formulário
+      setFormData({
+        cidade: '',
+        medico: '',
+        data: ''
+      });
     } catch (error) {
+      console.error('Erro ao salvar data:', error);
       toast.error(error.message || 'Erro ao salvar data');
     } finally {
       setIsLoading(false);
@@ -262,6 +279,24 @@ function DatasDisponiveis() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEdit = (date) => {
+    setEditingId(date.id);
+    
+    // Encontrar os IDs correspondentes no Firestore
+    const cidadeId = cities.find(city => city.name === date.cidade)?.id || '';
+    const medicoId = doctors.find(doctor => doctor.name === date.medico)?.id || '';
+    
+    // Preencher o formulário com os dados da data selecionada
+    setFormData({
+      cidade: cidadeId,
+      medico: medicoId,
+      data: date.dataOriginal || date.data // Usar o formato original da data se disponível
+    });
+    
+    // Rolar para o topo da página para o usuário ver o formulário
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -339,6 +374,12 @@ function DatasDisponiveis() {
                     onClick={() => handleConfigureHorarios(date.cidade)}
                   >
                     <FaCog />
+                  </ActionButton>
+                  <ActionButton
+                    edit
+                    onClick={() => handleEdit(date)}
+                  >
+                    <FaEdit />
                   </ActionButton>
                   <ActionButton
                     delete
