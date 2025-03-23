@@ -145,6 +145,12 @@ const ErrorText = styled.span`
   margin-bottom: 8px;
 `;
 
+const InfoText = styled.span`
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: block;
+`;
+
 function AgendamentoForm() {
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -154,13 +160,15 @@ function AgendamentoForm() {
   const [additionalInfo, setAdditionalInfo] = useState('');
   const [availableTimes, setAvailableTimes] = useState([]);
   const [errors, setErrors] = useState({});
+  const [selectedCityDoctor, setSelectedCityDoctor] = useState(''); // Estado para armazenar o médico da cidade selecionada
   
   const { 
     cities, 
     availableDates,
     scheduleConfigs,
     fetchScheduleConfigs,
-    createAppointment 
+    createAppointment,
+    doctors // Adicionando doctors ao destructuring
   } = useStore();
 
   const navigate = useNavigate();
@@ -231,6 +239,50 @@ function AgendamentoForm() {
       setAvailableTimes([]);
     }
   }, [selectedCity, selectedDate, scheduleConfigs]);
+
+  // Efeito para buscar o médico associado à cidade selecionada
+  useEffect(() => {
+    const fetchCityDoctor = async () => {
+      if (selectedCity) {
+        try {
+          // Buscar datas disponíveis para a cidade selecionada
+          const cityDoc = await firebaseService.getCityById(selectedCity);
+          if (!cityDoc) return;
+          
+          const cityName = cityDoc.name || cityDoc.nome;
+          
+          // Filtrar datas disponíveis para esta cidade
+          const cityDates = availableDates.filter(date => {
+            // Normalizar os nomes das cidades para comparação
+            const normalizeString = (str) => {
+              return str
+                ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+                : '';
+            };
+            
+            const normalizedDateCity = normalizeString(date.cidade);
+            const normalizedSelectedCity = normalizeString(cityName);
+            
+            return normalizedDateCity === normalizedSelectedCity;
+          });
+          
+          // Se encontrou alguma data para esta cidade, pegar o médico da primeira data
+          if (cityDates.length > 0) {
+            setSelectedCityDoctor(cityDates[0].medico);
+          } else {
+            setSelectedCityDoctor('');
+          }
+        } catch (error) {
+          console.error('Erro ao buscar médico da cidade:', error);
+          setSelectedCityDoctor('');
+        }
+      } else {
+        setSelectedCityDoctor('');
+      }
+    };
+    
+    fetchCityDoctor();
+  }, [selectedCity, availableDates]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -373,6 +425,12 @@ function AgendamentoForm() {
             ))}
           </Select>
           {errors.city && <ErrorText>{errors.city}</ErrorText>}
+          
+          {selectedCityDoctor && (
+            <InfoText>
+              <strong>Médico:</strong> {selectedCityDoctor}
+            </InfoText>
+          )}
 
           <Select
             value={selectedDate}
