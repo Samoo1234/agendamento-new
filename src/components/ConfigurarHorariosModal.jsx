@@ -149,11 +149,19 @@ const ConfigurarHorariosModal = ({ isOpen, onClose, cidade, onSave, initialConfi
   const [intervalo, setIntervalo] = useState('10');
 
   useEffect(() => {
-    if (initialConfig) {
-      setPeriodoManha(initialConfig.periodoManha);
-      setPeriodoTarde(initialConfig.periodoTarde);
-      setHorarios(initialConfig.horarios);
-      setIntervalo(initialConfig.intervalo.toString());
+    // Verificação mais segura para evitar erros com objetos undefined
+    if (initialConfig && 
+        typeof initialConfig === 'object' && 
+        initialConfig !== null) {
+      setPeriodoManha(initialConfig.periodoManha ?? true);
+      setPeriodoTarde(initialConfig.periodoTarde ?? true);
+      setHorarios({
+        manhaInicio: initialConfig.horarios?.manhaInicio || '09:00',
+        manhaFim: initialConfig.horarios?.manhaFim || '12:00',
+        tardeInicio: initialConfig.horarios?.tardeInicio || '14:00',
+        tardeFim: initialConfig.horarios?.tardeFim || '17:00'
+      });
+      setIntervalo((initialConfig.intervalo || 10).toString());
     }
   }, [initialConfig]);
 
