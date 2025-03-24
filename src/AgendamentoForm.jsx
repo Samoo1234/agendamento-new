@@ -14,6 +14,7 @@ const Container = styled.div`
   flex-direction: column;
   background-color: white;
   position: relative;
+  overflow-x: hidden; /* Prevenir scroll horizontal */
 `;
 
 const LoginButton = styled.button`
@@ -30,9 +31,17 @@ const LoginButton = styled.button`
   font-size: 14px;
   padding: 5px 10px;
   border-radius: 4px;
+  z-index: 10; /* Garantir que o botão fique acima de outros elementos */
 
   &:hover {
     background-color: rgba(0, 0, 51, 0.1);
+  }
+  
+  @media (max-width: 480px) {
+    top: 10px;
+    right: 10px;
+    font-size: 12px;
+    padding: 4px 8px;
   }
 `;
 
@@ -44,6 +53,11 @@ const Header = styled.div`
   max-width: 400px;
   margin: 0 auto;
   background-color: transparent;
+  
+  @media (max-width: 480px) {
+    max-width: 100%;
+    padding: 0 10px;
+  }
 `;
 
 const LogoContainer = styled.div`
@@ -57,6 +71,12 @@ const LogoContainer = styled.div`
   background-color: #000033;
   border-radius: 4px;
   padding: 20px;
+  
+  @media (max-width: 480px) {
+    height: 150px;
+    margin-bottom: 10px;
+    padding: 10px;
+  }
 `;
 
 const FormContainer = styled.div`
@@ -64,6 +84,11 @@ const FormContainer = styled.div`
   margin: 0 auto;
   padding: 20px;
   width: 100%;
+  
+  @media (max-width: 480px) {
+    padding: 15px;
+    max-width: 100%;
+  }
 `;
 
 const FormTitle = styled.h2`
@@ -72,12 +97,21 @@ const FormTitle = styled.h2`
   margin-bottom: 15px;
   font-size: 1rem;
   font-weight: 500;
+  
+  @media (max-width: 480px) {
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+  }
 `;
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 12px;
+  
+  @media (max-width: 480px) {
+    gap: 10px;
+  }
 `;
 
 const Input = styled.input`
@@ -89,6 +123,11 @@ const Input = styled.input`
   color: #000;
   &::placeholder {
     color: #666;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 10px;
+    font-size: 13px;
   }
 `;
 
@@ -109,6 +148,13 @@ const Select = styled.select`
   option {
     color: #000;
   }
+  
+  @media (max-width: 480px) {
+    padding: 10px;
+    font-size: 13px;
+    background-position: right 10px center;
+    background-size: 14px;
+  }
 `;
 
 const TextArea = styled.textarea`
@@ -123,6 +169,12 @@ const TextArea = styled.textarea`
   &::placeholder {
     color: #666;
   }
+  
+  @media (max-width: 480px) {
+    padding: 10px;
+    font-size: 13px;
+    min-height: 80px;
+  }
 `;
 
 const Button = styled.button`
@@ -136,6 +188,11 @@ const Button = styled.button`
   font-size: 14px;
   text-transform: uppercase;
   margin-top: 4px;
+  
+  @media (max-width: 480px) {
+    padding: 10px;
+    font-size: 13px;
+  }
 `;
 
 const ErrorText = styled.span`
@@ -143,12 +200,23 @@ const ErrorText = styled.span`
   font-size: 12px;
   margin-top: -8px;
   margin-bottom: 8px;
+  
+  @media (max-width: 480px) {
+    font-size: 11px;
+    margin-top: -6px;
+    margin-bottom: 6px;
+  }
 `;
 
 const InfoText = styled.span`
   font-size: 14px;
   margin-bottom: 8px;
   display: block;
+  
+  @media (max-width: 480px) {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
 `;
 
 function AgendamentoForm() {
@@ -161,6 +229,7 @@ function AgendamentoForm() {
   const [availableTimes, setAvailableTimes] = useState([]);
   const [errors, setErrors] = useState({});
   const [selectedCityDoctor, setSelectedCityDoctor] = useState(''); // Estado para armazenar o médico da cidade selecionada
+  const [isLoading, setIsLoading] = useState(true); // Estado para controlar o carregamento
   
   const { 
     cities, 
@@ -168,14 +237,49 @@ function AgendamentoForm() {
     scheduleConfigs,
     fetchScheduleConfigs,
     createAppointment,
-    doctors // Adicionando doctors ao destructuring
+    doctors,
+    fetchCities,
+    fetchAvailableDates
   } = useStore();
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchScheduleConfigs();
-  }, [fetchScheduleConfigs]);
+    // Função para carregar todos os dados necessários
+    const loadAllData = async () => {
+      setIsLoading(true);
+      try {
+        console.log("Iniciando carregamento de dados no AgendamentoForm");
+        
+        // Carregar dados em paralelo para melhor performance
+        await Promise.all([
+          fetchScheduleConfigs(),
+          fetchCities(),
+          fetchAvailableDates()
+        ]);
+        
+        console.log("Cidades carregadas:", cities);
+        console.log("Datas disponíveis carregadas:", availableDates);
+      } catch (error) {
+        console.error("Erro ao carregar dados iniciais:", error);
+        toast.error("Erro ao carregar dados. Por favor, recarregue a página.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadAllData();
+  }, [fetchScheduleConfigs, fetchCities, fetchAvailableDates]);
+
+  useEffect(() => {
+    // Carregar todas as configurações necessárias quando o componente montar
+    // fetchScheduleConfigs();
+    // fetchCities();
+    // fetchAvailableDates();
+    
+    // Adicionar logs para depuração
+    // console.log("Iniciando carregamento de dados no AgendamentoForm");
+  }, []);
 
   useEffect(() => {
     if (selectedCity && selectedDate) {
@@ -407,117 +511,131 @@ function AgendamentoForm() {
 
       <FormContainer>
         <FormTitle>Agendar Consulta</FormTitle>
-        <Form onSubmit={handleSubmit}>
-          <Select 
-            value={selectedCity}
-            onChange={(e) => {
-              setSelectedCity(e.target.value);
-              setSelectedDate('');
-              setSelectedTime('');
-            }}
-            error={errors.city}
-          >
-            <option value="">Selecione uma cidade</option>
-            {cities.map(city => (
-              <option key={city.id} value={city.id}>
-                {city.name}
-              </option>
-            ))}
-          </Select>
-          {errors.city && <ErrorText>{errors.city}</ErrorText>}
-          
-          {selectedCityDoctor && (
-            <InfoText>
-              <strong>Médico:</strong> {selectedCityDoctor}
-            </InfoText>
-          )}
-
-          <Select
-            value={selectedDate}
-            onChange={(e) => {
-              setSelectedDate(e.target.value);
-              setSelectedTime('');
-            }}
-            disabled={!selectedCity}
-            error={errors.date}
-          >
-            <option value="">Selecione uma data</option>
-            {availableDates
-              .filter(date => {
-                const selectedCityName = cities.find(c => c.id.toString() === selectedCity)?.name;
-                console.log(`Filtrando data: ${JSON.stringify(date)}, Cidade selecionada: ${selectedCityName}`);
-                
-                // Normalizar os nomes das cidades para comparação (remover acentos, converter para minúsculas)
-                const normalizeString = (str) => {
-                  return str
-                    ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
-                    : '';
-                };
-                
-                const normalizedDateCity = normalizeString(date.cidade);
-                const normalizedSelectedCity = normalizeString(selectedCityName);
-                
-                // Verificar se a data é para a cidade selecionada e ainda está disponível
-                const matchesCity = normalizedDateCity === normalizedSelectedCity;
-                const isAvailable = date.status === 'Disponível';
-                
-                console.log(`Data ${date.data} - Cidade da data: ${normalizedDateCity}, Cidade selecionada: ${normalizedSelectedCity}, Corresponde: ${matchesCity}, Status: ${date.status}`);
-                
-                return matchesCity && isAvailable;
-                // Nota: A verificação da data já foi feita na função getAvailableDates
-                // Então aqui só precisamos verificar o status que já foi atualizado
-              })
-              .map(date => (
-                <option key={date.id} value={date.id}>
-                  {date.data}
+        
+        {isLoading ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <p>Carregando dados...</p>
+          </div>
+        ) : cities.length === 0 || availableDates.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <p>Não foi possível carregar os dados necessários.</p>
+            <Button onClick={() => window.location.reload()}>
+              Tentar Novamente
+            </Button>
+          </div>
+        ) : (
+          <Form onSubmit={handleSubmit}>
+            <Select 
+              value={selectedCity}
+              onChange={(e) => {
+                setSelectedCity(e.target.value);
+                setSelectedDate('');
+                setSelectedTime('');
+              }}
+              error={errors.city}
+            >
+              <option value="">Selecione uma cidade</option>
+              {cities.map(city => (
+                <option key={city.id} value={city.id}>
+                  {city.name}
                 </option>
               ))}
-          </Select>
-          {errors.date && <ErrorText>{errors.date}</ErrorText>}
+            </Select>
+            {errors.city && <ErrorText>{errors.city}</ErrorText>}
+            
+            {selectedCityDoctor && (
+              <InfoText>
+                <strong>Médico:</strong> {selectedCityDoctor}
+              </InfoText>
+            )}
 
-          <Select
-            value={selectedTime}
-            onChange={(e) => setSelectedTime(e.target.value)}
-            error={errors.time}
-            disabled={!selectedCity || !selectedDate}
-          >
-            <option value="">Selecione um horário</option>
-            {availableTimes.map(time => (
-              <option key={time} value={time}>
-                {time}
-              </option>
-            ))}
-          </Select>
-          {errors.time && <ErrorText>{errors.time}</ErrorText>}
+            <Select
+              value={selectedDate}
+              onChange={(e) => {
+                setSelectedDate(e.target.value);
+                setSelectedTime('');
+              }}
+              disabled={!selectedCity}
+              error={errors.date}
+            >
+              <option value="">Selecione uma data</option>
+              {availableDates
+                .filter(date => {
+                  const selectedCityName = cities.find(c => c.id.toString() === selectedCity)?.name;
+                  console.log(`Filtrando data: ${JSON.stringify(date)}, Cidade selecionada: ${selectedCityName}`);
+                  
+                  // Normalizar os nomes das cidades para comparação (remover acentos, converter para minúsculas)
+                  const normalizeString = (str) => {
+                    return str
+                      ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+                      : '';
+                  };
+                  
+                  const normalizedDateCity = normalizeString(date.cidade);
+                  const normalizedSelectedCity = normalizeString(selectedCityName);
+                  
+                  // Verificar se a data é para a cidade selecionada e ainda está disponível
+                  const matchesCity = normalizedDateCity === normalizedSelectedCity;
+                  const isAvailable = date.status === 'Disponível';
+                  
+                  console.log(`Data ${date.data} - Cidade da data: ${normalizedDateCity}, Cidade selecionada: ${normalizedSelectedCity}, Corresponde: ${matchesCity}, Status: ${date.status}`);
+                  
+                  return matchesCity && isAvailable;
+                  // Nota: A verificação da data já foi feita na função getAvailableDates
+                  // Então aqui só precisamos verificar o status que já foi atualizado
+                })
+                .map(date => (
+                  <option key={date.id} value={date.id}>
+                    {date.data}
+                  </option>
+                ))}
+            </Select>
+            {errors.date && <ErrorText>{errors.date}</ErrorText>}
 
-          <Input
-            type="text"
-            placeholder="Nome do paciente"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            error={errors.name}
-          />
-          {errors.name && <ErrorText>{errors.name}</ErrorText>}
+            <Select
+              value={selectedTime}
+              onChange={(e) => setSelectedTime(e.target.value)}
+              error={errors.time}
+              disabled={!selectedCity || !selectedDate}
+            >
+              <option value="">Selecione um horário</option>
+              {availableTimes.map(time => (
+                <option key={time} value={time}>
+                  {time}
+                </option>
+              ))}
+            </Select>
+            {errors.time && <ErrorText>{errors.time}</ErrorText>}
 
-          <Input
-            type="tel"
-            placeholder="Telefone"
-            value={phone}
-            onChange={handlePhoneChange}
-            error={errors.phone}
-          />
-          {errors.phone && <ErrorText>{errors.phone}</ErrorText>}
+            <Input
+              type="text"
+              placeholder="Nome do paciente"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              error={errors.name}
+            />
+            {errors.name && <ErrorText>{errors.name}</ErrorText>}
 
-          <TextArea
-            placeholder="Informações adicionais"
-            value={additionalInfo}
-            onChange={(e) => setAdditionalInfo(e.target.value)}
-          />
+            <Input
+              type="tel"
+              placeholder="Telefone"
+              value={phone}
+              onChange={handlePhoneChange}
+              error={errors.phone}
+            />
+            {errors.phone && <ErrorText>{errors.phone}</ErrorText>}
 
-          <Button type="submit">
-            Agendar Consulta
-          </Button>
-        </Form>
+            <TextArea
+              placeholder="Informações adicionais"
+              value={additionalInfo}
+              onChange={(e) => setAdditionalInfo(e.target.value)}
+            />
+
+            <Button type="submit">
+              Agendar Consulta
+            </Button>
+          </Form>
+        )}
       </FormContainer>
     </Container>
   );
