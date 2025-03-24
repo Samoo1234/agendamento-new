@@ -275,32 +275,61 @@ const GerenciarUsuarios = () => {
         toast.success('Usuário atualizado com sucesso!');
       } else {
         // Criar novo usuário
-        const userCredential = await createUserWithEmailAndPassword(
-          auth,
-          formData.email,
-          formData.senha
-        );
+        try {
+          console.log('Iniciando criação de usuário com:', formData.email);
+          console.log('Usando configuração Firebase:', auth.app.options);
+          
+          const userCredential = await createUserWithEmailAndPassword(
+            auth,
+            formData.email,
+            formData.senha
+          );
 
-        await addDoc(collection(db, 'usuarios'), {
-          email: formData.email,
-          cidade: formData.cidade,
-          role: formData.role,
-          disabled: false,
-          dataCriacao: new Date()
-        });
-
-        toast.success('Usuário criado com sucesso!');
+          await addDoc(collection(db, 'usuarios'), {
+            email: formData.email,
+            cidade: formData.cidade,
+            role: formData.role,
+            disabled: false,
+            dataCriacao: new Date()
+          });
+          
+          toast.success('Usuário criado com sucesso!');
+          setShowModal(false);
+          setEditingId(null);
+          setFormData({
+            email: '',
+            senha: '',
+            cidade: '',
+            role: 'usuario'
+          });
+          fetchUsers();
+        } catch (error) {
+          console.error('Erro completo:', error);
+          console.error('Código do erro:', error.code);
+          console.error('Mensagem do erro:', error.message);
+          
+          let errorMessage = 'Erro ao criar usuário';
+          
+          switch(error.code) {
+            case 'auth/api-key-not-valid':
+              errorMessage = 'Chave de API inválida. Verifique as configurações do Firebase.';
+              break;
+            case 'auth/email-already-in-use':
+              errorMessage = 'Este e-mail já está em uso.';
+              break;
+            case 'auth/invalid-email':
+              errorMessage = 'E-mail inválido.';
+              break;
+            case 'auth/weak-password':
+              errorMessage = 'Senha muito fraca. Use pelo menos 6 caracteres.';
+              break;
+            default:
+              errorMessage = `Erro: ${error.message}`;
+          }
+          
+          toast.error(errorMessage);
+        }
       }
-
-      setShowModal(false);
-      setEditingId(null);
-      setFormData({
-        email: '',
-        senha: '',
-        cidade: '',
-        role: 'usuario'
-      });
-      fetchUsers();
     } catch (error) {
       console.error('Erro ao salvar usuário:', error);
       toast.error(error.message || 'Erro ao salvar usuário');

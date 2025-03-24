@@ -65,14 +65,14 @@ const LogoContainer = styled.div`
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  margin-bottom: 20px;
+  margin: 10px;
   background-color: #000033;
   border-radius: 4px;
   padding: 20px;
   
   @media (max-width: 480px) {
     height: 150px;
-    margin-bottom: 10px;
+    margin: 10px;
     padding: 10px;
   }
 `;
@@ -106,6 +106,7 @@ const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top: 10px;
   
   @media (max-width: 480px) {
     gap: 10px;
