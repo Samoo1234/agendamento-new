@@ -29,19 +29,17 @@ const LoginButton = styled.button`
   gap: 5px;
   color: #000033;
   font-size: 14px;
-  padding: 5px 10px;
-  border-radius: 4px;
-  z-index: 10; /* Garantir que o botão fique acima de outros elementos */
-
-  &:hover {
-    background-color: rgba(0, 0, 51, 0.1);
-  }
   
-  @media (max-width: 480px) {
+  /* Estilo para dispositivos móveis */
+  @media (max-width: 768px) {
+    background-color: #000080;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
     top: 10px;
     right: 10px;
-    font-size: 12px;
-    padding: 4px 8px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 `;
 
@@ -501,7 +499,7 @@ function AgendamentoForm() {
   return (
     <Container>
       <LoginButton onClick={() => navigate('/login')}>
-        <FaUser />
+        <FaUser style={{ fontSize: '16px' }} />
         Login
       </LoginButton>
 
