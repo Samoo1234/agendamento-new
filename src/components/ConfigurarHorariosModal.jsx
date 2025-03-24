@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { FaTimes } from 'react-icons/fa';
+import { isFirestoreTimestamp, timestampToDate } from '../utils/firebaseUtils';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -153,15 +155,31 @@ const ConfigurarHorariosModal = ({ isOpen, onClose, cidade, onSave, initialConfi
     if (initialConfig && 
         typeof initialConfig === 'object' && 
         initialConfig !== null) {
-      setPeriodoManha(initialConfig.periodoManha ?? true);
-      setPeriodoTarde(initialConfig.periodoTarde ?? true);
+      
+      // Verificar e definir periodoManha com valor padrão
+      const periodoManhaValue = initialConfig.periodoManha !== undefined ? 
+        initialConfig.periodoManha : true;
+      setPeriodoManha(periodoManhaValue);
+      
+      // Verificar e definir periodoTarde com valor padrão
+      const periodoTardeValue = initialConfig.periodoTarde !== undefined ? 
+        initialConfig.periodoTarde : true;
+      setPeriodoTarde(periodoTardeValue);
+      
+      // Verificar e definir horários com valores padrão
+      const horariosObj = initialConfig.horarios && typeof initialConfig.horarios === 'object' ? 
+        initialConfig.horarios : {};
+        
       setHorarios({
-        manhaInicio: initialConfig.horarios?.manhaInicio || '09:00',
-        manhaFim: initialConfig.horarios?.manhaFim || '12:00',
-        tardeInicio: initialConfig.horarios?.tardeInicio || '14:00',
-        tardeFim: initialConfig.horarios?.tardeFim || '17:00'
+        manhaInicio: horariosObj.manhaInicio || '09:00',
+        manhaFim: horariosObj.manhaFim || '12:00',
+        tardeInicio: horariosObj.tardeInicio || '14:00',
+        tardeFim: horariosObj.tardeFim || '17:00'
       });
-      setIntervalo((initialConfig.intervalo || 10).toString());
+      
+      // Verificar e definir intervalo com valor padrão
+      const intervaloValue = initialConfig.intervalo || '10';
+      setIntervalo(intervaloValue);
     }
   }, [initialConfig]);
 

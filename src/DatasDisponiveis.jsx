@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { FaCog, FaTrash, FaEdit } from 'react-icons/fa';
 import ConfigurarHorariosModal from './components/ConfigurarHorariosModal';
 import * as firebaseService from './services/firebaseService';
+import { sanitizeFirestoreData } from './utils/firebaseUtils';
 
 const MainContent = styled.div`
   padding: 20px;
@@ -401,9 +402,18 @@ function DatasDisponiveis() {
         onSave={handleSaveHorarios}
         initialConfig={selectedCidade && cities && cities.length > 0 
           ? (() => {
-              const cityObj = cities.find(c => c.name === selectedCidade);
-              const cityId = cityObj ? cityObj.id : null;
-              return cityId && scheduleConfigs ? scheduleConfigs[cityId] || null : null;
+              try {
+                const cityObj = cities.find(c => c.name === selectedCidade);
+                const cityId = cityObj ? cityObj.id : null;
+                if (cityId && scheduleConfigs && scheduleConfigs[cityId]) {
+                  // Sanitizar os dados para remover timestamps do Firestore
+                  return sanitizeFirestoreData(scheduleConfigs[cityId]);
+                }
+                return null;
+              } catch (error) {
+                console.error('Erro ao processar configuração de horários:', error);
+                return null;
+              }
             })() 
           : null}
       />

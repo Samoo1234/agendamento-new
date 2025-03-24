@@ -14,6 +14,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { sanitizeFirestoreData } from '../utils/firebaseUtils';
 
 // Autenticação
 export const authenticateUser = async (email, senha) => {
@@ -27,7 +28,7 @@ export const authenticateUser = async (email, senha) => {
     }
 
     const userDoc = querySnapshot.docs[0];
-    const userData = userDoc.data();
+    const userData = sanitizeFirestoreData(userDoc.data());
 
     // Convertendo para string para garantir a comparação correta
     const senhaFornecida = String(senha);
@@ -51,7 +52,7 @@ export const authenticateUser = async (email, senha) => {
 // Usuários
 export const getUsers = async () => {
   const querySnapshot = await getDocs(collection(db, 'usuarios'));
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...sanitizeFirestoreData(doc.data()) }));
 };
 
 export const addUser = async (userData) => {
@@ -64,13 +65,13 @@ export const addUser = async (userData) => {
   }
   
   const docRef = await addDoc(usersRef, userData);
-  return { id: docRef.id, ...userData };
+  return { id: docRef.id, ...sanitizeFirestoreData(userData) };
 };
 
 export const updateUser = async (id, userData) => {
   const userRef = doc(db, 'usuarios', id);
   await updateDoc(userRef, userData);
-  return { id, ...userData };
+  return { id, ...sanitizeFirestoreData(userData) };
 };
 
 export const deleteUser = async (id) => {
@@ -81,7 +82,7 @@ export const deleteUser = async (id) => {
 // Médicos
 export const getDoctors = async () => {
   const querySnapshot = await getDocs(collection(db, 'medicos'));
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...sanitizeFirestoreData(doc.data()) }));
 };
 
 export const getDoctorById = async (id) => {
@@ -90,7 +91,7 @@ export const getDoctorById = async (id) => {
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() };
+      return { id: docSnap.id, ...sanitizeFirestoreData(docSnap.data()) };
     } else {
       console.log('Médico não encontrado com ID:', id);
       return null;
@@ -103,13 +104,13 @@ export const getDoctorById = async (id) => {
 
 export const addDoctor = async (doctorData) => {
   const docRef = await addDoc(collection(db, 'medicos'), doctorData);
-  return { id: docRef.id, ...doctorData };
+  return { id: docRef.id, ...sanitizeFirestoreData(doctorData) };
 };
 
 export const updateDoctor = async (id, doctorData) => {
   const doctorRef = doc(db, 'medicos', id);
   await updateDoc(doctorRef, doctorData);
-  return { id, ...doctorData };
+  return { id, ...sanitizeFirestoreData(doctorData) };
 };
 
 export const deleteDoctor = async (id) => {
@@ -120,7 +121,7 @@ export const deleteDoctor = async (id) => {
 // Cidades
 export const getCities = async () => {
   const querySnapshot = await getDocs(collection(db, 'cidades'));
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...sanitizeFirestoreData(doc.data()) }));
 };
 
 export const getCityById = async (id) => {
@@ -129,7 +130,7 @@ export const getCityById = async (id) => {
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() };
+      return { id: docSnap.id, ...sanitizeFirestoreData(docSnap.data()) };
     } else {
       console.log('Cidade não encontrada com ID:', id);
       return null;
@@ -142,7 +143,7 @@ export const getCityById = async (id) => {
 
 export const addCity = async (cityData) => {
   const docRef = await addDoc(collection(db, 'cidades'), cityData);
-  return { id: docRef.id, ...cityData };
+  return { id: docRef.id, ...sanitizeFirestoreData(cityData) };
 };
 
 export const updateCity = async (id, cityData) => {
@@ -154,7 +155,7 @@ export const updateCity = async (id, cityData) => {
   };
   const cityRef = doc(db, 'cidades', id);
   await updateDoc(cityRef, normalizedData);
-  return { id, ...normalizedData };
+  return { id, ...sanitizeFirestoreData(normalizedData) };
 };
 
 export const deleteCity = async (id) => {
@@ -176,7 +177,7 @@ export const getAvailableDates = async () => {
   let updateNeeded = false;
   
   const dates = querySnapshot.docs.map(doc => {
-    const data = doc.data();
+    const data = sanitizeFirestoreData(doc.data());
     console.log(`Processando data: ${JSON.stringify(data)}`);
     
     // Verificar se a data possui o campo 'data'
@@ -245,7 +246,7 @@ export const getAvailableDateById = async (id) => {
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() };
+      return { id: docSnap.id, ...sanitizeFirestoreData(docSnap.data()) };
     } else {
       console.log('Data disponível não encontrada com ID:', id);
       return null;
@@ -258,13 +259,13 @@ export const getAvailableDateById = async (id) => {
 
 export const addAvailableDate = async (dateData) => {
   const docRef = await addDoc(collection(db, 'datas_disponiveis'), dateData);
-  return { id: docRef.id, ...dateData };
+  return { id: docRef.id, ...sanitizeFirestoreData(dateData) };
 };
 
 export const updateAvailableDate = async (id, dateData) => {
   const dateRef = doc(db, 'datas_disponiveis', id);
   await updateDoc(dateRef, dateData);
-  return { id, ...dateData };
+  return { id, ...sanitizeFirestoreData(dateData) };
 };
 
 export const deleteAvailableDate = async (id) => {
@@ -275,7 +276,7 @@ export const deleteAvailableDate = async (id) => {
 // Agendamentos
 export const getAppointments = async () => {
   const querySnapshot = await getDocs(collection(db, 'agendamentos'));
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...sanitizeFirestoreData(doc.data()) }));
 };
 
 export const checkTimeAvailability = async (cidade, data, horario) => {
@@ -316,13 +317,13 @@ export const addAppointment = async (appointmentData) => {
   }
   
   const docRef = await addDoc(collection(db, 'agendamentos'), appointmentData);
-  return { id: docRef.id, ...appointmentData };
+  return { id: docRef.id, ...sanitizeFirestoreData(appointmentData) };
 };
 
 export const updateAppointment = async (id, appointmentData) => {
   const appointmentRef = doc(db, 'agendamentos', id);
   await updateDoc(appointmentRef, appointmentData);
-  return { id, ...appointmentData };
+  return { id, ...sanitizeFirestoreData(appointmentData) };
 };
 
 export const deleteAppointment = async (id) => {
@@ -335,7 +336,7 @@ export const getScheduleConfig = async (cityId) => {
   const docRef = doc(db, 'scheduleConfigs', cityId);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
-    return { id: docSnap.id, ...docSnap.data() };
+    return { id: docSnap.id, ...sanitizeFirestoreData(docSnap.data()) };
   }
   return null;
 };
@@ -343,14 +344,14 @@ export const getScheduleConfig = async (cityId) => {
 export const saveScheduleConfig = async (cityId, config) => {
   const docRef = doc(db, 'scheduleConfigs', cityId);
   await setDoc(docRef, config);
-  return { id: cityId, ...config };
+  return { id: cityId, ...sanitizeFirestoreData(config) };
 };
 
 export const getAllScheduleConfigs = async () => {
   const querySnapshot = await getDocs(collection(db, 'scheduleConfigs'));
   return querySnapshot.docs.map(doc => ({
     id: doc.id,
-    ...doc.data()
+    ...sanitizeFirestoreData(doc.data())
   }));
 };
 
@@ -368,7 +369,7 @@ export const getBookedTimes = async (cidade, data) => {
     );
     
     const querySnapshot = await getDocs(q);
-    const bookedTimes = querySnapshot.docs.map(doc => doc.data().horario);
+    const bookedTimes = querySnapshot.docs.map(doc => sanitizeFirestoreData(doc.data()).horario);
     
     console.log(`Horários já agendados: ${bookedTimes.join(', ') || 'Nenhum'}`);
     return bookedTimes;
