@@ -127,6 +127,37 @@ const GerenciarClientes = () => {
     fetchAgendamentos();
   }, []);
 
+  // Obter datas disponíveis com base na cidade selecionada
+  const datasDisponiveis = [...new Set(
+    agendamentos
+      .filter(a => a.cidade === cidadeFiltro)
+      .map(a => a.data)
+  )].sort();
+
+  // Selecionar automaticamente a primeira cidade quando os dados são carregados
+  useEffect(() => {
+    if (!loading && cities.length > 0 && !cidadeFiltro) {
+      setCidadeFiltro(cities[0].name);
+    }
+  }, [loading, cities, cidadeFiltro]);
+
+  // Selecionar automaticamente a primeira data disponível quando a cidade é selecionada
+  useEffect(() => {
+    if (cidadeFiltro && datasDisponiveis.length > 0) {
+      setDataFiltro(datasDisponiveis[0]);
+    } else {
+      setDataFiltro('');
+    }
+  }, [cidadeFiltro, datasDisponiveis]);
+
+  // Filtrar agendamentos com base nos critérios selecionados
+  const agendamentosFiltrados = agendamentos.filter(agendamento => {
+    const matchCidade = agendamento.cidade === cidadeFiltro;
+    const matchData = agendamento.data === dataFiltro;
+    const matchStatus = !statusFiltro || agendamento.status === statusFiltro;
+    return matchCidade && matchData && matchStatus;
+  });
+
   const handleDelete = async (id) => {
     if (window.confirm('Tem certeza que deseja excluir este agendamento?')) {
       try {
@@ -271,13 +302,6 @@ const GerenciarClientes = () => {
     toast.success('PDF gerado com sucesso!');
   };
 
-  const agendamentosFiltrados = agendamentos.filter(agendamento => {
-    const matchCidade = !cidadeFiltro || agendamento.cidade === cidadeFiltro;
-    const matchData = !dataFiltro || agendamento.data === dataFiltro;
-    const matchStatus = !statusFiltro || agendamento.status === statusFiltro;
-    return matchCidade && matchData && matchStatus;
-  });
-
   if (loading) {
     return <div>Carregando...</div>;
   }
@@ -296,7 +320,6 @@ const GerenciarClientes = () => {
           value={cidadeFiltro} 
           onChange={(e) => setCidadeFiltro(e.target.value)}
         >
-          <option value="">Todas as cidades</option>
           {cities.map(city => (
             <option key={city.id} value={city.name}>
               {city.name}
@@ -308,8 +331,7 @@ const GerenciarClientes = () => {
           value={dataFiltro} 
           onChange={(e) => setDataFiltro(e.target.value)}
         >
-          <option value="">Todas as datas</option>
-          {[...new Set(agendamentos.map(a => a.data))].sort().map(data => (
+          {datasDisponiveis.map(data => (
             <option key={data} value={data}>{data}</option>
           ))}
         </Select>
