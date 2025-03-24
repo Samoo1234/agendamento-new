@@ -1,102 +1,166 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import useStore from './store/useStore';
 import toast from 'react-hot-toast';
 
 const MainContent = styled.div`
-  width: 100%;
+  padding: 20px;
+  max-width: 100%;
 `;
 
 const Title = styled.h1`
-  color: #333;
+  font-size: 24px;
   margin-bottom: 20px;
+  color: #000033;
+  
+  @media (max-width: 768px) {
+    font-size: 20px;
+    text-align: center;
+  }
 `;
 
-const FormContainer = styled.div`
-  background: white;
+const FormContainer = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 30px;
+  background-color: white;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-  display: flex;
-  gap: 15px;
-  align-items: flex-end;
+  
+  @media (max-width: 768px) {
+    padding: 15px;
+  }
 `;
 
 const InputGroup = styled.div`
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 `;
 
 const Label = styled.label`
-  display: block;
-  margin-bottom: 5px;
-  color: #666;
-  font-size: 14px;
+  font-weight: 500;
 `;
 
 const Input = styled.input`
-  width: 100%;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 16px;
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
 `;
 
 const Button = styled.button`
-  padding: 8px 16px;
-  background-color: #000080;
+  background-color: #000033;
   color: white;
   border: none;
+  padding: 10px 15px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
-  height: 35px;
-
+  font-weight: 500;
+  align-self: flex-start;
+  
   &:hover {
     background-color: #000066;
+  }
+  
+  @media (max-width: 768px) {
+    align-self: center;
+    width: 100%;
   }
 `;
 
 const Table = styled.table`
   width: 100%;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-collapse: collapse;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
 `;
 
 const Th = styled.th`
+  background-color: #000033;
+  color: white;
   text-align: left;
-  padding: 12px;
-  border-bottom: 2px solid #ddd;
-  color: #333;
+  padding: 12px 15px;
+  
+  @media (max-width: 768px) {
+    padding: 10px;
+  }
 `;
 
 const Td = styled.td`
-  padding: 12px;
+  padding: 12px 15px;
   border-bottom: 1px solid #ddd;
-  color: #666;
+  
+  @media (max-width: 768px) {
+    padding: 10px;
+  }
 `;
 
 const ActionButton = styled.button`
-  padding: 4px 8px;
-  margin: 0 4px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  background-color: ${props => props.delete ? '#ff4444' : '#000080'};
+  background-color: ${props => props.delete ? '#dc3545' : '#0d6efd'};
   color: white;
-
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-right: 8px;
+  cursor: pointer;
+  
   &:hover {
-    background-color: ${props => props.delete ? '#cc0000' : '#000066'};
+    background-color: ${props => props.delete ? '#bd2130' : '#0b5ed7'};
   }
+  
+  @media (max-width: 768px) {
+    padding: 6px 10px;
+    margin-right: 5px;
+    font-size: 12px;
+  }
+`;
+
+const LoadingMessage = styled.p`
+  text-align: center;
+  margin-bottom: 20px;
+`;
+
+const EmptyMessage = styled.p`
+  text-align: center;
+  margin-bottom: 20px;
 `;
 
 function Medicos() {
   const [nomeMedico, setNomeMedico] = useState('');
   const [editingId, setEditingId] = useState(null);
-  const { doctors, addDoctor, updateDoctor, deleteDoctor, setIsLoading } = useStore();
+  const { doctors, addDoctor, updateDoctor, deleteDoctor, setIsLoading, fetchDoctors, isLoading } = useStore();
+
+  // Carregar médicos quando o componente é montado
+  useEffect(() => {
+    const loadDoctors = async () => {
+      try {
+        console.log('Carregando médicos...');
+        setIsLoading(true);
+        await fetchDoctors();
+        console.log('Médicos carregados com sucesso!');
+      } catch (error) {
+        console.error('Erro ao carregar médicos:', error);
+        toast.error('Erro ao carregar médicos');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDoctors();
+  }, [fetchDoctors, setIsLoading]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -126,7 +190,8 @@ function Medicos() {
   return (
     <MainContent>
       <Title>Gerenciar Médicos</Title>
-      <FormContainer>
+      
+      <FormContainer onSubmit={handleSubmit}>
         <InputGroup>
           <Label>Nome do Médico *</Label>
           <Input
@@ -137,47 +202,53 @@ function Medicos() {
           />
         </InputGroup>
 
-        <Button onClick={handleSubmit}>
+        <Button type="submit">
           {editingId ? 'ATUALIZAR' : 'CADASTRAR'}
         </Button>
       </FormContainer>
 
-      <Table>
-        <thead>
-          <tr>
-            <Th>Nome</Th>
-            <Th>Ações</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {doctors.map((doctor) => (
-            <tr key={doctor.id}>
-              <Td>{doctor.name}</Td>
-              <Td>
-                <ActionButton onClick={() => {
-                  setNomeMedico(doctor.name);
-                  setEditingId(doctor.id);
-                }}>
-                  Editar
-                </ActionButton>
-                <ActionButton delete onClick={async () => {
-                  try {
-                    setIsLoading(true);
-                    await deleteDoctor(doctor.id);
-                    toast.success('Médico excluído com sucesso!');
-                  } catch (error) {
-                    toast.error('Erro ao excluir médico');
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}>
-                  Excluir
-                </ActionButton>
-              </Td>
+      {isLoading ? (
+        <LoadingMessage>Carregando médicos...</LoadingMessage>
+      ) : doctors.length === 0 ? (
+        <EmptyMessage>Nenhum médico cadastrado</EmptyMessage>
+      ) : (
+        <Table>
+          <thead>
+            <tr>
+              <Th>Nome</Th>
+              <Th>Ações</Th>
             </tr>
-          ))}
-        </tbody>
-      </Table>
+          </thead>
+          <tbody>
+            {doctors.map((doctor) => (
+              <tr key={doctor.id}>
+                <Td>{doctor.name}</Td>
+                <Td>
+                  <ActionButton onClick={() => {
+                    setNomeMedico(doctor.name);
+                    setEditingId(doctor.id);
+                  }}>
+                    Editar
+                  </ActionButton>
+                  <ActionButton delete onClick={async () => {
+                    try {
+                      setIsLoading(true);
+                      await deleteDoctor(doctor.id);
+                      toast.success('Médico excluído com sucesso!');
+                    } catch (error) {
+                      toast.error('Erro ao excluir médico');
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}>
+                    Excluir
+                  </ActionButton>
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
     </MainContent>
   );
 }
