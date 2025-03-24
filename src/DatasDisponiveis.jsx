@@ -399,7 +399,9 @@ function DatasDisponiveis() {
         onClose={() => setIsModalOpen(false)}
         cidade={selectedCidade}
         onSave={handleSaveHorarios}
-        initialConfig={selectedCidade ? scheduleConfigs[cities.find(c => c.name === selectedCidade)?.id] : null}
+        initialConfig={selectedCidade && cities.length > 0 ? 
+          scheduleConfigs[cities.find(c => c.name === selectedCidade)?.id || ''] || null 
+          : null}
       />
     </MainContent>
   );
