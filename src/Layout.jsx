@@ -141,8 +141,6 @@ function Layout() {
     { icon: <BiBuilding />, text: 'Cidades', path: '/cidades' },
     { icon: <AiOutlineTeam />, text: 'Clientes', path: '/clientes' },
     { icon: <FaMoneyBillWave />, text: 'Financeiro', path: '/financeiro', alwaysShow: true },
-    // Item alternativo para o financeiro, garantindo acesso em produção
-    { icon: <FaMoneyBillWave />, text: 'Módulo Financeiro', path: '/modulo-financeiro', alwaysShow: true, showInProduction: true },
     { icon: <AiOutlineSetting />, text: 'Gerenciar Usuários', path: '/gerenciar-usuarios' }
   ];
 
@@ -174,9 +172,7 @@ function Layout() {
       )}
 
       <Sidebar $sidebarOpen={sidebarOpen}>
-        {menuItems
-          .filter(item => !item.showInProduction || isProduction)
-          .map((item, index) => (
+        {menuItems.map((item, index) => (
           <MenuItem
             key={index}
             onClick={() => navigate(item.path)}
