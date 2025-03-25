@@ -7,8 +7,8 @@ export default defineConfig({
     port: 3000
   },
   build: {
-    rollupOptions: {
-      external: ['date-fns', 'date-fns/locale']
+    commonjsOptions: {
+      include: [/date-fns/, /node_modules/]
     }
   }
 })

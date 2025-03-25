@@ -1301,7 +1301,7 @@ const Financeiro = () => {
                               style={{ width: '100%' }}
                             />
                           ) : (
-                            registro.valor
+                            formatarValorMoeda(registro.valor)
                           )}
                         </td>
                         <td style={{ border: '1px solid #ddd', padding: '8px' }}>
@@ -1365,7 +1365,7 @@ const Financeiro = () => {
                                 <button 
                                   onClick={() => adicionarPagamento(registro.id)}
                                   style={{ 
-                                    backgroundColor: '#4CAF50',
+                                    backgroundColor: '#000033', 
                                     color: 'white',
                                     border: 'none', 
                                     borderRadius: '4px',
@@ -1386,7 +1386,7 @@ const Financeiro = () => {
                                 fontWeight: 'bold'
                               }}>
                                 Total: R$ {formatarValorMoeda(calcularTotalPagamentosDivididos(registro.id))} / 
-                                R$ {registro.valor || '0,00'}
+                                R$ {formatarValorMoeda(registro.valor || '0,00')}
                                 {Math.abs(calcularTotalPagamentosDivididos(registro.id) - parseFloat(registro.valor?.replace(',', '.') || 0)) < 0.01 
                                   ? ' ✓' 
                                   : ' ✗'}
@@ -1397,7 +1397,7 @@ const Financeiro = () => {
                               {registro.formasPagamento && Array.isArray(registro.formasPagamento) ? (
                                 registro.formasPagamento.map((p, i) => (
                                   <div key={i} style={{ marginBottom: '4px' }}>
-                                    <strong>{p.formaPagamento}:</strong> R$ {p.valor}
+                                    <strong>{p.formaPagamento}:</strong> R$ {formatarValorMoeda(p.valor)}
                                   </div>
                                 ))
                               ) : (
@@ -1436,18 +1436,58 @@ const Financeiro = () => {
                         </td>
                         <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                           {registro.novo ? (
-                            <Button onClick={() => salvarNovoRegistro(registro)}>Salvar</Button>
+                            <Button 
+                              onClick={() => salvarNovoRegistro(registro)}
+                              style={{ 
+                                backgroundColor: '#000033', 
+                                marginBottom: '2px'
+                              }}
+                            >
+                              Salvar
+                            </Button>
                           ) : (
                             <>
                               {registro.editando ? (
                                 <>
-                                  <Button onClick={() => salvarEdicaoRegistro(registro)}>Salvar</Button>
-                                  <Button onClick={() => cancelarEdicaoRegistro(registro.id)}>Cancelar</Button>
+                                  <Button 
+                                    onClick={() => salvarEdicaoRegistro(registro)}
+                                    style={{ 
+                                      backgroundColor: '#000033', 
+                                      marginBottom: '2px'
+                                    }}
+                                  >
+                                    Salvar
+                                  </Button>
+                                  <Button 
+                                    onClick={() => cancelarEdicaoRegistro(registro.id)}
+                                    style={{ 
+                                      backgroundColor: '#ff4d4d', 
+                                      marginBottom: '2px'
+                                    }}
+                                  >
+                                    Cancelar
+                                  </Button>
                                 </>
                               ) : (
                                 <>
-                                  <Button onClick={() => iniciarEdicaoRegistro(registro.id)}>Editar</Button>
-                                  <Button onClick={() => excluirRegistro(registro.id)}>Excluir</Button>
+                                  <Button 
+                                    onClick={() => iniciarEdicaoRegistro(registro.id)}
+                                    style={{ 
+                                      backgroundColor: '#000033', 
+                                      marginBottom: '2px'
+                                    }}
+                                  >
+                                    Editar
+                                  </Button>
+                                  <Button 
+                                    onClick={() => excluirRegistro(registro.id)}
+                                    style={{ 
+                                      backgroundColor: '#ff4d4d', 
+                                      marginBottom: '2px'
+                                    }}
+                                  >
+                                    Excluir
+                                  </Button>
                                 </>
                               )}
                             </>

@@ -365,7 +365,163 @@ const useStore = create(
       isLoading: false,
       setIsLoading: (isLoading) => set({ isLoading }),
       error: null,
-      setError: (error) => set({ error })
+      setError: (error) => set({ error }),
+
+      // Módulo Financeiro
+      registrosFinanceiros: [],
+      registroFinanceiroSelecionado: null,
+      cidadeFinanceiroSelecionada: null,
+      dataFinanceiroSelecionada: null,
+      
+      setCidadeFinanceiroSelecionada: (cidadeId) => set({ cidadeFinanceiroSelecionada: cidadeId }),
+      setDataFinanceiroSelecionada: (data) => set({ dataFinanceiroSelecionada: data }),
+      
+      fetchRegistrosFinanceiros: async (data, cidadeId) => {
+        try {
+          set({ isLoading: true });
+          const registros = await firebaseService.getRegistrosFinanceiros(data, cidadeId);
+          set({ 
+            registrosFinanceiros: registros,
+            dataFinanceiroSelecionada: data || get().dataFinanceiroSelecionada,
+            cidadeFinanceiroSelecionada: cidadeId || get().cidadeFinanceiroSelecionada
+          });
+          return registros;
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      
+      getRegistroFinanceiroById: async (id) => {
+        try {
+          set({ isLoading: true });
+          const registro = await firebaseService.getRegistroFinanceiroById(id);
+          set({ registroFinanceiroSelecionado: registro });
+          return registro;
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      
+      salvarRegistroFinanceiro: async (registro) => {
+        try {
+          set({ isLoading: true });
+          const id = await firebaseService.salvarRegistroFinanceiro(registro);
+          
+          // Atualizar a lista de registros
+          set((state) => {
+            const registrosAtualizados = registro.id 
+              ? state.registrosFinanceiros.map(r => r.id === registro.id ? { ...registro, id } : r)
+              : [...state.registrosFinanceiros, { ...registro, id }];
+              
+            return { registrosFinanceiros: registrosAtualizados };
+          });
+          
+          return id;
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      
+      excluirRegistroFinanceiro: async (id) => {
+        try {
+          set({ isLoading: true });
+          await firebaseService.excluirRegistroFinanceiro(id);
+          
+          // Remover o registro da lista
+          set((state) => ({
+            registrosFinanceiros: state.registrosFinanceiros.filter(r => r.id !== id)
+          }));
+          
+          return true;
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      
+      getAgendamentosPorData: async (data, cidadeId) => {
+        try {
+          set({ isLoading: true });
+          const agendamentos = await firebaseService.getAgendamentosPorData(data, cidadeId);
+          return agendamentos;
+        } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      
+      // Cálculos estatísticos para o relatório financeiro
+      calcularEstatisticasFinanceiras: (registros) => {
+        const estatisticas = {
+          totalParticular: 0,
+          totalConvenio: 0,
+          totalCampanha: 0,
+          totalGeral: 0,
+          countParticular: 0,
+          countConvenio: 0,
+          countCampanha: 0,
+          countTotal: 0,
+          countDinheiro: 0,
+          countCartao: 0,
+          countPix: 0,
+          countCasosClinicos: 0,
+          countEfetivacoes: 0,
+          countPerdas: 0
+        };
+        
+        registros.forEach(registro => {
+          // Somar valores por tipo
+          if (registro.valor) {
+            estatisticas.totalGeral += Number(registro.valor);
+            
+            if (registro.tipo === 'Particular') {
+              estatisticas.totalParticular += Number(registro.valor);
+              estatisticas.countParticular++;
+            } else if (registro.tipo === 'Convênio') {
+              estatisticas.totalConvenio += Number(registro.valor);
+              estatisticas.countConvenio++;
+            } else if (registro.tipo === 'Campanha') {
+              estatisticas.totalCampanha += Number(registro.valor);
+              estatisticas.countCampanha++;
+            }
+            
+            // Contar por forma de pagamento
+            if (registro.formaPagamento === 'Dinheiro') {
+              estatisticas.countDinheiro++;
+            } else if (registro.formaPagamento === 'Cartão') {
+              estatisticas.countCartao++;
+            } else if (registro.formaPagamento === 'PIX/Pic pay') {
+              estatisticas.countPix++;
+            }
+            
+            // Contar por situação
+            if (registro.situacao === 'Caso Clínico') {
+              estatisticas.countCasosClinicos++;
+            } else if (registro.situacao === 'ok') {
+              estatisticas.countEfetivacoes++;
+            } else {
+              estatisticas.countPerdas++;
+            }
+            
+            estatisticas.countTotal++;
+          }
+        });
+        
+        return estatisticas;
+      }
     }),
     {
       name: 'agendamento-store'

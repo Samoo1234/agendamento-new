@@ -378,3 +378,113 @@ export const getBookedTimes = async (cidade, data) => {
     return [];
   }
 };
+
+// Módulo Financeiro
+export const getRegistrosFinanceiros = async (data, cidadeId) => {
+  try {
+    console.log(`Buscando registros financeiros para data ${data} e cidade ${cidadeId}`);
+    
+    let q = collection(db, 'registros_financeiros');
+    
+    // Filtrar por data e cidade se fornecidos
+    if (data && cidadeId) {
+      q = query(q, where('data', '==', data), where('cidade', '==', cidadeId));
+    } else if (data) {
+      q = query(q, where('data', '==', data));
+    } else if (cidadeId) {
+      q = query(q, where('cidade', '==', cidadeId));
+    }
+    
+    const querySnapshot = await getDocs(q);
+    const registros = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...sanitizeFirestoreData(doc.data())
+    }));
+    
+    console.log(`Total de registros financeiros encontrados: ${registros.length}`);
+    return registros;
+  } catch (error) {
+    console.error('Erro ao buscar registros financeiros:', error);
+    return [];
+  }
+};
+
+export const getRegistroFinanceiroById = async (id) => {
+  try {
+    const docRef = doc(db, 'registros_financeiros', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        ...sanitizeFirestoreData(docSnap.data())
+      };
+    } else {
+      console.log(`Registro financeiro com ID ${id} não encontrado`);
+      return null;
+    }
+  } catch (error) {
+    console.error('Erro ao buscar registro financeiro:', error);
+    return null;
+  }
+};
+
+export const salvarRegistroFinanceiro = async (registro) => {
+  try {
+    if (registro.id) {
+      // Atualizar registro existente
+      const docRef = doc(db, 'registros_financeiros', registro.id);
+      await updateDoc(docRef, registro);
+      console.log(`Registro financeiro ${registro.id} atualizado com sucesso`);
+      return registro.id;
+    } else {
+      // Adicionar novo registro
+      const docRef = await addDoc(collection(db, 'registros_financeiros'), registro);
+      console.log(`Novo registro financeiro criado com ID: ${docRef.id}`);
+      return docRef.id;
+    }
+  } catch (error) {
+    console.error('Erro ao salvar registro financeiro:', error);
+    throw error;
+  }
+};
+
+export const excluirRegistroFinanceiro = async (id) => {
+  try {
+    await deleteDoc(doc(db, 'registros_financeiros', id));
+    console.log(`Registro financeiro ${id} excluído com sucesso`);
+    return true;
+  } catch (error) {
+    console.error('Erro ao excluir registro financeiro:', error);
+    return false;
+  }
+};
+
+export const getAgendamentosPorData = async (data, cidadeId) => {
+  try {
+    console.log(`Buscando agendamentos para data ${data} e cidade ${cidadeId}`);
+    
+    let q = collection(db, 'agendamentos');
+    
+    // Filtrar por data e cidade se fornecidos
+    if (data && cidadeId) {
+      q = query(q, where('data', '==', data), where('cidade', '==', cidadeId));
+    } else if (data) {
+      q = query(q, where('data', '==', data));
+    } else if (cidadeId) {
+      q = query(q, where('cidade', '==', cidadeId));
+    }
+    
+    const querySnapshot = await getDocs(q);
+    const agendamentos = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...sanitizeFirestoreData(doc.data())
+    }));
+    
+    console.log(`Total de agendamentos encontrados: ${agendamentos.length}`);
+    return agendamentos;
+  } catch (error) {
+    console.error('Erro ao buscar agendamentos:', error);
+    return [];
+  }
+};
