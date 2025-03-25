@@ -1255,7 +1255,6 @@ const Financeiro = () => {
           </Select>
         </FilterGroup>
         
-        <Button onClick={testarConexaoFirebase}>Testar Conexão com o Firebase</Button>
       </FilterContainer>
       
       {isLoading && <p>Carregando dados...</p>}
@@ -1440,7 +1439,9 @@ const Financeiro = () => {
                               onClick={() => salvarNovoRegistro(registro)}
                               style={{ 
                                 backgroundColor: '#000033', 
-                                marginBottom: '2px'
+                                marginBottom: '2px',
+                                width: '100px',
+                                textAlign: 'center'
                               }}
                             >
                               Salvar
@@ -1453,7 +1454,9 @@ const Financeiro = () => {
                                     onClick={() => salvarEdicaoRegistro(registro)}
                                     style={{ 
                                       backgroundColor: '#000033', 
-                                      marginBottom: '2px'
+                                      marginBottom: '2px',
+                                      width: '100px',
+                                      textAlign: 'center'
                                     }}
                                   >
                                     Salvar
@@ -1462,7 +1465,9 @@ const Financeiro = () => {
                                     onClick={() => cancelarEdicaoRegistro(registro.id)}
                                     style={{ 
                                       backgroundColor: '#ff4d4d', 
-                                      marginBottom: '2px'
+                                      marginBottom: '2px',
+                                      width: '100px',
+                                      textAlign: 'center'
                                     }}
                                   >
                                     Cancelar
@@ -1474,7 +1479,9 @@ const Financeiro = () => {
                                     onClick={() => iniciarEdicaoRegistro(registro.id)}
                                     style={{ 
                                       backgroundColor: '#000033', 
-                                      marginBottom: '2px'
+                                      marginBottom: '2px',
+                                      width: '100px',
+                                      textAlign: 'center'
                                     }}
                                   >
                                     Editar
@@ -1483,7 +1490,9 @@ const Financeiro = () => {
                                     onClick={() => excluirRegistro(registro.id)}
                                     style={{ 
                                       backgroundColor: '#ff4d4d', 
-                                      marginBottom: '2px'
+                                      marginBottom: '2px',
+                                      width: '100px',
+                                      textAlign: 'center'
                                     }}
                                   >
                                     Excluir
