@@ -5,6 +5,7 @@ import useStore from './store/useStore';
 import { Toaster } from 'react-hot-toast';
 import { AiOutlineDashboard, AiOutlineCalendar, AiOutlineUser, AiOutlineTeam, AiOutlineLogout, AiOutlineMenu, AiOutlineClose, AiOutlineSetting } from 'react-icons/ai';
 import { BiBuilding } from 'react-icons/bi';
+import { FaMoneyBillWave } from 'react-icons/fa';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -139,8 +140,14 @@ function Layout() {
     { icon: <AiOutlineUser />, text: 'Médicos', path: '/medicos' },
     { icon: <BiBuilding />, text: 'Cidades', path: '/cidades' },
     { icon: <AiOutlineTeam />, text: 'Clientes', path: '/clientes' },
+    { icon: <FaMoneyBillWave />, text: 'Financeiro', path: '/financeiro', alwaysShow: true },
+    // Item alternativo para o financeiro, garantindo acesso em produção
+    { icon: <FaMoneyBillWave />, text: 'Módulo Financeiro', path: '/modulo-financeiro', alwaysShow: true, showInProduction: true },
     { icon: <AiOutlineSetting />, text: 'Gerenciar Usuários', path: '/gerenciar-usuarios' }
   ];
+
+  // Verificar se estamos em ambiente de produção
+  const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -167,11 +174,14 @@ function Layout() {
       )}
 
       <Sidebar $sidebarOpen={sidebarOpen}>
-        {menuItems.map((item, index) => (
+        {menuItems
+          .filter(item => !item.showInProduction || isProduction)
+          .map((item, index) => (
           <MenuItem
             key={index}
             onClick={() => navigate(item.path)}
             className={location.pathname === item.path ? 'active' : ''}
+            style={{ display: item.alwaysShow ? 'flex' : undefined }}
           >
             {item.icon}
             {item.text}

@@ -12,6 +12,7 @@ import Clientes from './Clientes';
 import GerenciarUsuarios from './GerenciarUsuarios';
 import AgendamentoForm from './AgendamentoForm';
 import GerenciarClientes from './GerenciarClientes';
+import Financeiro from './Financeiro';
 
 function App() {
   return (
@@ -47,6 +48,9 @@ function App() {
             <Route path="/cidades" element={<Cidades />} />
             <Route path="/clientes" element={<GerenciarClientes />} />
             <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />
+            <Route path="/financeiro" element={<Financeiro />} />
+            {/* Rota alternativa para o financeiro */}
+            <Route path="/modulo-financeiro" element={<Financeiro />} />
           </Route>
         </Route>
       </Routes>
