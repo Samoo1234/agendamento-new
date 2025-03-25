@@ -583,11 +583,37 @@ function AgendamentoForm() {
                   // Nota: A verificação da data já foi feita na função getAvailableDates
                   // Então aqui só precisamos verificar o status que já foi atualizado
                 })
-                .map(date => (
-                  <option key={date.id} value={date.id}>
-                    {date.data}
-                  </option>
-                ))}
+                // Ordenar as datas em ordem crescente (da mais próxima para a mais distante)
+                .sort((a, b) => {
+                  // Converter as strings de data para objetos Date para comparação
+                  const [dayA, monthA, yearA] = a.data.split('/').map(Number);
+                  const [dayB, monthB, yearB] = b.data.split('/').map(Number);
+                  
+                  const dateA = new Date(yearA, monthA - 1, dayA);
+                  const dateB = new Date(yearB, monthB - 1, dayB);
+                  
+                  return dateA - dateB; // Ordem crescente
+                })
+                .map(date => {
+                  // Adicionar o dia da semana à data
+                  const [day, month, year] = date.data.split('/').map(Number);
+                  const dateObj = new Date(year, month - 1, day);
+                  
+                  // Array com os nomes dos dias da semana em português
+                  const weekdays = [
+                    'Domingo', 'Segunda-feira', 'Terça-feira', 
+                    'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'
+                  ];
+                  
+                  const weekday = weekdays[dateObj.getDay()];
+                  const formattedDate = `${date.data} ${weekday}`;
+                  
+                  return (
+                    <option key={date.id} value={date.id}>
+                      {formattedDate}
+                    </option>
+                  );
+                })}
             </Select>
             {errors.date && <ErrorText>{errors.date}</ErrorText>}
 
