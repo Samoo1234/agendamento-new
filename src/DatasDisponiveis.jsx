@@ -209,8 +209,15 @@ function DatasDisponiveis() {
       }
       
       // Formatar a data para exibição
-      const dataObj = new Date(formData.data);
-      const dataFormatada = dataObj.toLocaleDateString('pt-BR');
+      // Extrair ano, mês e dia diretamente da string de data original (formato YYYY-MM-DD)
+      const [ano, mes, dia] = formData.data.split('-').map(num => parseInt(num, 10));
+      
+      // Formatar manualmente para evitar problemas de timezone
+      const dataFormatada = `${dia.toString().padStart(2, '0')}/${mes.toString().padStart(2, '0')}/${ano}`;
+      
+      console.log('Data original:', formData.data);
+      console.log('Data formatada:', dataFormatada);
+      console.log('Componentes da data:', { ano, mes, dia });
       
       // Preparar dados para salvar
       const dateData = {
