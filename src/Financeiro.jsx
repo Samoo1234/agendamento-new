@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+// Removendo importações problemáticas de date-fns
+// import { format } from 'date-fns';
+// import { ptBR } from 'date-fns/locale';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
@@ -472,7 +473,7 @@ const Financeiro = () => {
             console.log('Data formatada:', dataFormatada, 'String original:', dataObj.data);
             
             // Formatar o dia da semana
-            const diaSemanaFormatado = format(dataFormatada, 'EEEE', { locale: ptBR });
+            const diaSemanaFormatado = dataFormatada.toLocaleString('pt-BR', { weekday: 'long' });
             console.log('Dia da semana formatado:', diaSemanaFormatado);
             
             // Capitalizar a primeira letra
