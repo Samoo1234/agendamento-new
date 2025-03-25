@@ -370,35 +370,49 @@ function DatasDisponiveis() {
           </tr>
         </thead>
         <tbody>
-          {availableDates.map((date) => (
-            <tr key={date.id}>
-              <Td>{date.cidade}</Td>
-              <Td>{date.data}</Td>
-              <Td>{date.medico}</Td>
-              <Td>{date.status}</Td>
-              <Td>
-                <ActionsContainer>
-                  <ActionButton
-                    onClick={() => handleConfigureHorarios(date.cidade)}
-                  >
-                    <FaCog />
-                  </ActionButton>
-                  <ActionButton
-                    edit
-                    onClick={() => handleEdit(date)}
-                  >
-                    <FaEdit />
-                  </ActionButton>
-                  <ActionButton
-                    delete
-                    onClick={() => handleDelete(date.id)}
-                  >
-                    <FaTrash />
-                  </ActionButton>
-                </ActionsContainer>
-              </Td>
-            </tr>
-          ))}
+          {availableDates
+            // Ordenar datas em ordem crescente
+            .sort((a, b) => {
+              // Converter datas do formato DD/MM/YYYY para objetos Date para comparação
+              const [diaA, mesA, anoA] = a.data.split('/').map(Number);
+              const [diaB, mesB, anoB] = b.data.split('/').map(Number);
+              
+              // Criar objetos Date para comparação (mês é 0-indexed no JavaScript)
+              const dateA = new Date(anoA, mesA - 1, diaA);
+              const dateB = new Date(anoB, mesB - 1, diaB);
+              
+              // Comparar as datas
+              return dateA - dateB;
+            })
+            .map((date) => (
+              <tr key={date.id}>
+                <Td>{date.cidade}</Td>
+                <Td>{date.data}</Td>
+                <Td>{date.medico}</Td>
+                <Td>{date.status}</Td>
+                <Td>
+                  <ActionsContainer>
+                    <ActionButton
+                      onClick={() => handleConfigureHorarios(date.cidade)}
+                    >
+                      <FaCog />
+                    </ActionButton>
+                    <ActionButton
+                      edit
+                      onClick={() => handleEdit(date)}
+                    >
+                      <FaEdit />
+                    </ActionButton>
+                    <ActionButton
+                      delete
+                      onClick={() => handleDelete(date.id)}
+                    >
+                      <FaTrash />
+                    </ActionButton>
+                  </ActionsContainer>
+                </Td>
+              </tr>
+            ))}
         </tbody>
       </Table>
 
