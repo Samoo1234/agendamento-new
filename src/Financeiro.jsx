@@ -3,12 +3,13 @@ import styled from 'styled-components';
 // Removendo importações problemáticas de date-fns
 // import { format } from 'date-fns';
 // import { ptBR } from 'date-fns/locale';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from './config/firebase';
 import * as firebaseService from './services/firebaseService';
 import useStore from './store/useStore';
+import { FaTrash, FaPlus } from 'react-icons/fa';
 
 // Componentes estilizados
 const Container = styled.div`
@@ -91,11 +92,15 @@ const Financeiro = () => {
     countDinheiro: 0,
     countCartao: 0,
     countPix: 0,
+    totalDinheiro: 0,
+    totalCartao: 0,
+    totalPix: 0,
     countCasosClinicos: 0,
     countEfetivacoes: 0,
     countPerdas: 0
   });
   const [mapaCidadeDatas, setMapaCidadeDatas] = useState(new Map());
+  const [pagamentosDivididos, setPagamentosDivididos] = useState({});
 
   // Carregar cidades e datas disponíveis
   useEffect(() => {
@@ -188,164 +193,187 @@ const Financeiro = () => {
 
   // Função para buscar dados financeiros e agendamentos
   const buscarDados = async () => {
-    if (!cidadeSelecionada || !dataSelecionada) {
-      console.log('Cidade ou data não selecionada');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
     try {
+      setIsLoading(true);
+      setError(null);
+      
       console.log(`Buscando dados para cidade ${cidadeSelecionada} e data ${dataSelecionada}`);
       
-      // Buscar a data selecionada para obter o formato correto (DD/MM/YYYY)
-      const dataObj = datas.find(d => d.id === dataSelecionada);
-      if (!dataObj || !dataObj.data) {
-        throw new Error('Data selecionada não encontrada');
+      // Verificar se temos cidade e data selecionadas
+      if (!cidadeSelecionada || !dataSelecionada) {
+        console.log('Cidade ou data não selecionada, não buscando dados');
+        setIsLoading(false);
+        return;
       }
       
-      const dataFormatada = dataObj.data; // Formato DD/MM/YYYY
-      console.log('Data formatada:', dataFormatada);
+      // Buscar a data selecionada para obter a data formatada
+      const dataObj = datas.find(d => d.id === dataSelecionada);
+      if (!dataObj) {
+        console.error('Data selecionada não encontrada');
+        setIsLoading(false);
+        return;
+      }
       
-      // 1. Buscar registros financeiros existentes
-      console.log('Buscando registros financeiros existentes...');
+      // Buscar registros financeiros para a cidade e data selecionadas
+      console.log(`Buscando registros para cidade ID: ${cidadeSelecionada} e data ID: ${dataSelecionada}`);
+      
+      // Criar query para buscar registros financeiros
+      const q = query(
+        collection(db, 'registros_financeiros'),
+        where('cidadeId', '==', cidadeSelecionada),
+        where('dataId', '==', dataSelecionada)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      console.log(`Encontrados ${querySnapshot.size} registros`);
+      
+      // Processar resultados
+      const registros = [];
+      querySnapshot.forEach((doc) => {
+        registros.push({
+          id: doc.id,
+          ...doc.data(),
+          editando: false
+        });
+      });
+      
+      setRegistrosFinanceiros(registros);
+      
+      // Inicializar pagamentos divididos para registros existentes
+      const pagamentosTemp = {};
+      registros.forEach(registro => {
+        if (registro.formasPagamento && Array.isArray(registro.formasPagamento)) {
+          pagamentosTemp[registro.id] = registro.formasPagamento;
+        } else {
+          // Compatibilidade com registros antigos
+          pagamentosTemp[registro.id] = [{
+            formaPagamento: registro.formaPagamento || '',
+            valor: registro.valor || ''
+          }];
+        }
+      });
+      
+      setPagamentosDivididos(prev => ({
+        ...prev,
+        ...pagamentosTemp
+      }));
+      
+      // Buscar agendamentos para a mesma cidade e data
+      console.log('Buscando agendamentos para a mesma cidade e data');
       
       // Obter o nome da cidade a partir do ID
       const cidadeObj = cities.find(city => city.id === cidadeSelecionada);
       if (!cidadeObj) {
-        throw new Error('Cidade selecionada não encontrada');
+        console.error('Cidade selecionada não encontrada');
+        setIsLoading(false);
+        return;
       }
-      const nomeCidade = cidadeObj.name;
       
-      console.log(`Nome da cidade: ${nomeCidade}, Data formatada: ${dataFormatada}`);
+      // Obter a data formatada
+      const dataFormatada = dataObj.data;
+      console.log(`Buscando agendamentos para cidade: ${cidadeObj.name} e data: ${dataFormatada}`);
       
-      const registrosQuery = query(
-        collection(db, 'registros_financeiros'),
-        where('cidade', '==', nomeCidade),
-        where('data', '==', dataFormatada)
-      );
-      
-      console.log('Query de registros financeiros:', {
-        cidade: nomeCidade,
-        data: dataFormatada
-      });
-      
-      const registrosSnapshot = await getDocs(registrosQuery);
-      console.log(`Encontrados ${registrosSnapshot.docs.length} registros financeiros`);
-      
-      const registrosExistentes = registrosSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        editando: false // Adicionar flag para controle de edição
-      }));
-      
-      console.log('Registros financeiros encontrados:', registrosExistentes);
-      
-      // 2. Buscar agendamentos para esta data e cidade
-      console.log('Buscando agendamentos...');
-      
-      // Obter o nome da cidade a partir do ID
-      const cidadeObj2 = cities.find(city => city.id === cidadeSelecionada);
-      if (!cidadeObj2) {
-        throw new Error('Cidade selecionada não encontrada');
-      }
-      const nomeCidade2 = cidadeObj2.name;
-      
-      console.log(`Nome da cidade: ${nomeCidade2}, Data formatada: ${dataFormatada}`);
-      
-      const agendamentosQuery = query(
+      // Criar query para buscar agendamentos usando o nome da cidade e a data formatada
+      const qAgendamentos = query(
         collection(db, 'agendamentos'),
-        where('cidade', '==', nomeCidade2),
+        where('cidade', '==', cidadeObj.name),
         where('data', '==', dataFormatada)
       );
       
-      console.log('Query de agendamentos:', {
-        cidade: nomeCidade2,
-        data: dataFormatada
-      });
+      const agendamentosSnapshot = await getDocs(qAgendamentos);
+      console.log(`Encontrados ${agendamentosSnapshot.size} agendamentos`);
       
-      const agendamentosSnapshot = await getDocs(agendamentosQuery);
-      console.log(`Encontrados ${agendamentosSnapshot.docs.length} agendamentos`);
+      // Processar agendamentos
+      const agendamentosData = [];
+      const registrosDeAgendamentos = [...registros]; // Cópia dos registros existentes
       
-      // Verificar a estrutura dos primeiros agendamentos (se houver)
-      if (agendamentosSnapshot.docs.length > 0) {
-        console.log('Estrutura do primeiro agendamento:', agendamentosSnapshot.docs[0].data());
-      }
+      console.log('Processando agendamentos encontrados:', agendamentosSnapshot.size);
       
-      // Verificar todos os agendamentos na coleção para entender a estrutura dos dados
-      console.log('Verificando todos os agendamentos na coleção...');
-      const todosAgendamentosQuery = query(collection(db, 'agendamentos'));
-      const todosAgendamentosSnapshot = await getDocs(todosAgendamentosQuery);
-      console.log(`Total de ${todosAgendamentosSnapshot.docs.length} agendamentos na coleção`);
-      
-      if (todosAgendamentosSnapshot.docs.length > 0) {
-        const amostraAgendamentos = todosAgendamentosSnapshot.docs.slice(0, 3);
-        console.log('Amostra de agendamentos:');
-        amostraAgendamentos.forEach((doc, index) => {
-          const dados = doc.data();
-          console.log(`Agendamento ${index + 1}:`, {
-            id: doc.id,
-            cidade: dados.cidade,
-            data: dados.data,
-            // outros campos relevantes
-          });
-        });
-      }
-      
-      const todosAgendamentos = agendamentosSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      console.log('Agendamentos encontrados:', todosAgendamentos.length);
-      
-      // 3. Criar registros financeiros vazios para agendamentos que não têm registro
-      const agendamentosIds = new Set(registrosExistentes.map(r => r.agendamentoId));
-      const novosRegistros = [...registrosExistentes];
-      
-      for (const agendamento of todosAgendamentos) {
-        if (!agendamentosIds.has(agendamento.id)) {
-          // Buscar o nome do paciente
-          let nomePaciente = '';
+      agendamentosSnapshot.forEach((doc) => {
+        const agendamento = {
+          id: doc.id,
+          ...doc.data()
+        };
+        console.log('Agendamento encontrado:', agendamento);
+        agendamentosData.push(agendamento);
+        
+        // Verificar se já existe um registro financeiro para este agendamento
+        const registroExistente = registros.find(r => r.agendamentoId === agendamento.id);
+        console.log('Registro existente para agendamento?', registroExistente ? 'Sim' : 'Não');
+        
+        // Se não existir, criar um novo registro financeiro a partir do agendamento
+        if (!registroExistente) {
+          const novoRegistroId = `novo_${agendamento.id}`;
           
-          if (agendamento.paciente && agendamento.paciente.nome) {
-            nomePaciente = agendamento.paciente.nome;
-          } else if (agendamento.nomePaciente) {
-            nomePaciente = agendamento.nomePaciente;
+          // Verificar o nome do cliente/paciente
+          let nomeCliente = '';
+          if (agendamento.paciente) {
+            nomeCliente = agendamento.paciente;
+          } else if (agendamento.cliente) {
+            nomeCliente = agendamento.cliente;
           } else if (agendamento.nome) {
-            nomePaciente = agendamento.nome;
+            nomeCliente = agendamento.nome;
           }
           
-          console.log(`Criando registro vazio para agendamento ${agendamento.id} - Paciente: ${nomePaciente}`);
+          console.log('Nome do cliente encontrado:', nomeCliente);
           
-          novosRegistros.push({
-            id: `novo_${agendamento.id}`,
+          const novoRegistro = {
+            id: novoRegistroId,
             agendamentoId: agendamento.id,
-            cliente: nomePaciente,
-            valor: '',
+            cliente: nomeCliente,
+            valor: agendamento.valor || '',
             tipo: '',
             formaPagamento: '',
             situacao: '',
             observacoes: '',
-            cidade: cidadeSelecionada,
-            data: dataSelecionada,
             novo: true,
-            editando: true
-          });
+            editando: true, // Iniciar em modo de edição para que o usuário possa preencher os campos
+            cidadeId: cidadeSelecionada,
+            dataId: dataSelecionada
+          };
+          
+          console.log('Criando novo registro financeiro a partir do agendamento:', novoRegistro);
+          registrosDeAgendamentos.push(novoRegistro);
+          
+          // Inicializar pagamentos divididos para este registro
+          pagamentosTemp[novoRegistroId] = [{ formaPagamento: '', valor: agendamento.valor || '' }];
         }
+      });
+      
+      console.log('Total de registros após processamento:', registrosDeAgendamentos.length);
+      setAgendamentos(agendamentosData);
+      setRegistrosFinanceiros(registrosDeAgendamentos);
+      
+      // Atualizar dia da semana
+      if (dataObj.data) {
+        // Extrair dia, mês e ano da data formatada (DD/MM/YYYY)
+        const [dia, mes, ano] = dataObj.data.split('/').map(Number);
+        
+        // Criar objeto Date com os valores extraídos (mês - 1 porque em JS os meses vão de 0 a 11)
+        const dataFormatada = new Date(
+          parseInt(ano, 10),
+          parseInt(mes, 10) - 1,
+          parseInt(dia, 10),
+          12, // meio-dia para evitar problemas de timezone
+          0,
+          0
+        );
+        
+        console.log('Data formatada:', dataFormatada, 'String original:', dataObj.data);
+        
+        // Formatar o dia da semana
+        const diaSemanaFormatado = dataFormatada.toLocaleString('pt-BR', { weekday: 'long' });
+        console.log('Dia da semana formatado:', diaSemanaFormatado);
+        
+        // Capitalizar a primeira letra
+        const diaSemanaCapitalizado = diaSemanaFormatado.charAt(0).toUpperCase() + diaSemanaFormatado.slice(1);
+        setDiaSemana(diaSemanaCapitalizado);
       }
       
-      setRegistrosFinanceiros(novosRegistros);
-      setAgendamentos(todosAgendamentos);
-      
-      // 4. Calcular estatísticas
-      calcularEstatisticas(novosRegistros);
-      
+      setIsLoading(false);
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
       setError(`Erro ao buscar dados: ${error.message}`);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -360,7 +388,13 @@ const Financeiro = () => {
       countParticular: 0,
       countConvenio: 0,
       countCampanha: 0,
-      countTotal: 0
+      countTotal: 0,
+      countDinheiro: 0,
+      countCartao: 0,
+      countPix: 0,
+      totalDinheiro: 0,
+      totalCartao: 0,
+      totalPix: 0
     };
     
     for (const registro of registros) {
@@ -372,6 +406,7 @@ const Financeiro = () => {
       stats.totalGeral += valor;
       stats.countTotal++;
       
+      // Contabilizar por tipo de atendimento
       switch (registro.tipo.toLowerCase()) {
         case 'particular':
           stats.totalParticular += valor;
@@ -386,6 +421,54 @@ const Financeiro = () => {
           stats.totalCampanha += valor;
           stats.countCampanha++;
           break;
+      }
+      
+      // Contabilizar por forma de pagamento
+      if (registro.formasPagamento && Array.isArray(registro.formasPagamento)) {
+        // Para registros com pagamentos divididos
+        for (const pagamento of registro.formasPagamento) {
+          if (!pagamento.formaPagamento || !pagamento.valor) continue;
+          
+          const valorPagamento = parseFloat(pagamento.valor.replace(',', '.'));
+          if (isNaN(valorPagamento)) continue;
+          
+          switch (pagamento.formaPagamento.toLowerCase()) {
+            case 'dinheiro':
+              stats.countDinheiro++;
+              stats.totalDinheiro += valorPagamento;
+              break;
+            case 'cartão':
+            case 'cartao':
+              stats.countCartao++;
+              stats.totalCartao += valorPagamento;
+              break;
+            case 'pix/pic pay':
+            case 'pix':
+            case 'pic pay':
+              stats.countPix++;
+              stats.totalPix += valorPagamento;
+              break;
+          }
+        }
+      } else {
+        // Para registros com forma de pagamento única (compatibilidade)
+        switch (registro.formaPagamento.toLowerCase()) {
+          case 'dinheiro':
+            stats.countDinheiro++;
+            stats.totalDinheiro += valor;
+            break;
+          case 'cartão':
+          case 'cartao':
+            stats.countCartao++;
+            stats.totalCartao += valor;
+            break;
+          case 'pix/pic pay':
+          case 'pix':
+          case 'pic pay':
+            stats.countPix++;
+            stats.totalPix += valor;
+            break;
+        }
       }
     }
     
@@ -422,9 +505,9 @@ const Financeiro = () => {
         countDinheiro: 0,
         countCartao: 0,
         countPix: 0,
-        countCasosClinicos: 0,
-        countEfetivacoes: 0,
-        countPerdas: 0
+        totalDinheiro: 0,
+        totalCartao: 0,
+        totalPix: 0
       });
     }
   }, [registrosFinanceiros]);
@@ -497,6 +580,27 @@ const Financeiro = () => {
     }
   };
 
+  const handleChangeRegistro = (id, campo, valor) => {
+    setRegistrosFinanceiros(prev => {
+      return prev.map(registro => {
+        if (registro.id === id) {
+          // Se o campo for valor, formatar como moeda
+          if (campo === 'valor') {
+            // Permitir apenas números, vírgula e ponto
+            const valorLimpo = valor.replace(/[^\d,.]/g, '');
+            // Substituir pontos por vírgulas (para garantir que só tenha uma vírgula)
+            const valorFormatado = valorLimpo.replace(/\./g, ',').replace(/,/g, ',');
+            
+            return { ...registro, [campo]: valorFormatado };
+          }
+          
+          return { ...registro, [campo]: valor };
+        }
+        return registro;
+      });
+    });
+  };
+
   const gerarPDF = () => {
     try {
       console.log('Gerando PDF...');
@@ -527,27 +631,43 @@ const Financeiro = () => {
       const tableRows = [];
       
       registrosFinanceiros.forEach(registro => {
+        // Formatar as formas de pagamento para exibição no PDF
+        let formasPagamentoTexto = '';
+        
+        if (registro.formasPagamento && Array.isArray(registro.formasPagamento)) {
+          formasPagamentoTexto = registro.formasPagamento
+            .map(p => `${p.formaPagamento}: R$ ${p.valor}`)
+            .join('\n');
+        } else {
+          formasPagamentoTexto = registro.formaPagamento;
+        }
+        
         const registroData = [
           registro.cliente,
           registro.valor,
           registro.tipo,
-          registro.formaPagamento,
+          formasPagamentoTexto,
           registro.situacao,
           registro.observacoes
         ];
         tableRows.push(registroData);
       });
       
-      doc.autoTable({
+      // Usar autoTable importado diretamente
+      autoTable(doc, {
         startY: 40,
         head: [tableColumn],
         body: tableRows,
         theme: 'striped',
-        headStyles: { fillColor: [75, 75, 75] }
+        headStyles: { fillColor: [75, 75, 75] },
+        styles: { overflow: 'linebreak' },
+        columnStyles: {
+          3: { cellWidth: 40 } // Aumentar a largura da coluna de formas de pagamento
+        }
       });
       
       // Adicionar resumo
-      const finalY = doc.lastAutoTable.finalY || 40;
+      let finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 40;
       
       doc.setFontSize(14);
       doc.text('Resumo', 14, finalY + 10);
@@ -555,13 +675,13 @@ const Financeiro = () => {
       // Tabela de resumo por tipo
       const resumoColumns = ["Tipo", "Quantidade", "Total (R$)"];
       const resumoRows = [
-        ["Particular", estatisticas.countParticular.toString(), estatisticas.totalParticular.toFixed(2)],
-        ["Convênio", estatisticas.countConvenio.toString(), estatisticas.totalConvenio.toFixed(2)],
-        ["Campanha", estatisticas.countCampanha.toString(), estatisticas.totalCampanha.toFixed(2)],
-        ["Total", estatisticas.countTotal.toString(), estatisticas.totalGeral.toFixed(2)]
+        ["Particular", estatisticas.countParticular.toString(), formatarValorMoeda(estatisticas.totalParticular)],
+        ["Convênio", estatisticas.countConvenio.toString(), formatarValorMoeda(estatisticas.totalConvenio)],
+        ["Campanha", estatisticas.countCampanha.toString(), formatarValorMoeda(estatisticas.totalCampanha)],
+        ["Total", estatisticas.countTotal.toString(), formatarValorMoeda(estatisticas.totalGeral)]
       ];
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: finalY + 15,
         head: [resumoColumns],
         body: resumoRows,
@@ -569,24 +689,34 @@ const Financeiro = () => {
         headStyles: { fillColor: [75, 75, 75] }
       });
       
-      // Salvar o PDF
-      doc.save(`Financeiro_${nomeCidade}_${dataFormatada.replace(/\//g, '-')}.pdf`);
+      // Adicionar resumo por forma de pagamento
+      finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : finalY + 15;
       
-      console.log('PDF gerado com sucesso!');
+      doc.setFontSize(14);
+      doc.text('Resumo por Forma de Pagamento', 14, finalY + 10);
+      
+      // Tabela de resumo por forma de pagamento
+      const resumoPagamentoColumns = ["Forma de Pagamento", "Quantidade", "Total (R$)"];
+      const resumoPagamentoRows = [
+        ["Dinheiro", estatisticas.countDinheiro.toString(), formatarValorMoeda(estatisticas.totalDinheiro)],
+        ["Cartão", estatisticas.countCartao.toString(), formatarValorMoeda(estatisticas.totalCartao)],
+        ["PIX/Pic pay", estatisticas.countPix.toString(), formatarValorMoeda(estatisticas.totalPix)]
+      ];
+      
+      autoTable(doc, {
+        startY: finalY + 15,
+        head: [resumoPagamentoColumns],
+        body: resumoPagamentoRows,
+        theme: 'striped',
+        headStyles: { fillColor: [75, 75, 75] }
+      });
+      
+      // Salvar o PDF
+      doc.save(`relatorio_financeiro_${nomeCidade}_${dataFormatada.replace(/\//g, '-')}.pdf`);
+      
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
       alert(`Erro ao gerar PDF: ${error.message}`);
-    }
-  };
-
-  const handleChangeRegistro = (id, campo, valor) => {
-    const registroIndex = registrosFinanceiros.findIndex(registro => registro.id === id);
-    if (registroIndex >= 0) {
-      const registro = registrosFinanceiros[registroIndex];
-      const novoRegistro = { ...registro, [campo]: valor };
-      const novosRegistros = [...registrosFinanceiros];
-      novosRegistros[registroIndex] = novoRegistro;
-      setRegistrosFinanceiros(novosRegistros);
     }
   };
 
@@ -595,9 +725,25 @@ const Financeiro = () => {
       console.log('Tentando salvar novo registro:', registro);
       
       // Verificar se todos os campos obrigatórios estão preenchidos
-      if (!registro.cliente || !registro.valor || !registro.tipo || !registro.formaPagamento || !registro.situacao) {
+      if (!registro.cliente || !registro.valor || !registro.tipo || !registro.situacao) {
         console.error('Campos obrigatórios não preenchidos');
-        alert('Por favor, preencha todos os campos obrigatórios (Cliente, R$, Tipo, Forma de Pagamento e Situação)');
+        alert('Por favor, preencha todos os campos obrigatórios (Cliente, R$, Tipo e Situação)');
+        return;
+      }
+      
+      // Verificar pagamentos divididos
+      const pagamentos = pagamentosDivididos[registro.id] || [];
+      if (pagamentos.length === 0 || !pagamentos.every(p => p.formaPagamento && p.valor)) {
+        alert('Por favor, preencha todas as formas de pagamento corretamente');
+        return;
+      }
+      
+      // Verificar se o total dos pagamentos divididos é igual ao valor total
+      const totalPagamentos = calcularTotalPagamentosDivididos(registro.id);
+      const valorTotal = parseFloat(registro.valor.replace(',', '.'));
+      
+      if (Math.abs(totalPagamentos - valorTotal) > 0.01) { // Tolerância para erros de arredondamento
+        alert(`O total das formas de pagamento (R$ ${totalPagamentos.toFixed(2)}) deve ser igual ao valor total (R$ ${valorTotal.toFixed(2)})`);
         return;
       }
       
@@ -614,13 +760,20 @@ const Financeiro = () => {
       }
       const nomeCidade = cidadeObj.name;
       
+      // Formatar as formas de pagamento para salvar no Firestore
+      const formasPagamento = pagamentos.map(p => ({
+        formaPagamento: p.formaPagamento,
+        valor: p.valor
+      }));
+      
       // Criar objeto com os dados do registro
       const novoRegistro = {
         agendamentoId: registro.agendamentoId,
         cliente: registro.cliente,
         valor: registro.valor,
         tipo: registro.tipo,
-        formaPagamento: registro.formaPagamento,
+        formaPagamento: pagamentos[0].formaPagamento, // Manter compatibilidade com registros antigos
+        formasPagamento: formasPagamento, // Novo campo para pagamentos divididos
         situacao: registro.situacao,
         observacoes: registro.observacoes || '',
         cidade: nomeCidade, // Usar o nome da cidade em vez do ID
@@ -629,7 +782,7 @@ const Financeiro = () => {
         dataId: dataSelecionada, // Manter o ID da data para referência
         timestamp: new Date().toISOString()
       };
-
+      
       console.log('Objeto de novo registro a ser salvo:', novoRegistro);
       console.log('Salvando na coleção registros_financeiros');
       
@@ -713,9 +866,29 @@ const Financeiro = () => {
   const iniciarEdicaoRegistro = (id) => {
     const registroIndex = registrosFinanceiros.findIndex(registro => registro.id === id);
     if (registroIndex >= 0) {
+      const registro = registrosFinanceiros[registroIndex];
       const novosRegistros = [...registrosFinanceiros];
       novosRegistros[registroIndex] = { ...novosRegistros[registroIndex], editando: true };
       setRegistrosFinanceiros(novosRegistros);
+      
+      // Inicializar pagamentos divididos se ainda não existirem
+      if (!pagamentosDivididos[id]) {
+        if (registro.formasPagamento && Array.isArray(registro.formasPagamento)) {
+          setPagamentosDivididos(prev => ({
+            ...prev,
+            [id]: registro.formasPagamento
+          }));
+        } else {
+          // Compatibilidade com registros antigos
+          setPagamentosDivididos(prev => ({
+            ...prev,
+            [id]: [{
+              formaPagamento: registro.formaPagamento || '',
+              valor: registro.valor || ''
+            }]
+          }));
+        }
+      }
     }
   };
 
@@ -725,6 +898,13 @@ const Financeiro = () => {
       const novosRegistros = [...registrosFinanceiros];
       novosRegistros[registroIndex] = { ...novosRegistros[registroIndex], editando: false };
       setRegistrosFinanceiros(novosRegistros);
+      
+      // Limpar pagamentos divididos temporários
+      if (pagamentosDivididos[id]) {
+        const novosPagamentos = { ...pagamentosDivididos };
+        delete novosPagamentos[id];
+        setPagamentosDivididos(novosPagamentos);
+      }
     }
   };
 
@@ -733,9 +913,25 @@ const Financeiro = () => {
       console.log('Salvando edição do registro:', registro);
       
       // Verificar campos obrigatórios
-      if (!registro.cliente || !registro.valor || !registro.tipo || !registro.formaPagamento || !registro.situacao) {
+      if (!registro.cliente || !registro.valor || !registro.tipo || !registro.situacao) {
         console.error('Campos obrigatórios não preenchidos');
-        alert('Por favor, preencha todos os campos obrigatórios (Cliente, R$, Tipo, Forma de Pagamento e Situação)');
+        alert('Por favor, preencha todos os campos obrigatórios (Cliente, R$, Tipo e Situação)');
+        return;
+      }
+      
+      // Verificar pagamentos divididos
+      const pagamentos = pagamentosDivididos[registro.id] || [];
+      if (pagamentos.length === 0 || !pagamentos.every(p => p.formaPagamento && p.valor)) {
+        alert('Por favor, preencha todas as formas de pagamento corretamente');
+        return;
+      }
+      
+      // Verificar se o total dos pagamentos divididos é igual ao valor total
+      const totalPagamentos = calcularTotalPagamentosDivididos(registro.id);
+      const valorTotal = parseFloat(registro.valor.replace(',', '.'));
+      
+      if (Math.abs(totalPagamentos - valorTotal) > 0.01) { // Tolerância para erros de arredondamento
+        alert(`O total das formas de pagamento (R$ ${totalPagamentos.toFixed(2)}) deve ser igual ao valor total (R$ ${valorTotal.toFixed(2)})`);
         return;
       }
       
@@ -753,13 +949,20 @@ const Financeiro = () => {
       }
       const nomeCidade = cidadeObj.name;
       
+      // Formatar as formas de pagamento para salvar no Firestore
+      const formasPagamento = pagamentos.map(p => ({
+        formaPagamento: p.formaPagamento,
+        valor: p.valor
+      }));
+      
       // Criar objeto com os dados atualizados
       const registroAtualizado = {
         agendamentoId: registro.agendamentoId,
         cliente: registro.cliente,
         valor: registro.valor,
         tipo: registro.tipo,
-        formaPagamento: registro.formaPagamento,
+        formaPagamento: pagamentos[0].formaPagamento, // Manter compatibilidade com registros antigos
+        formasPagamento: formasPagamento, // Novo campo para pagamentos divididos
         situacao: registro.situacao,
         observacoes: registro.observacoes || '',
         cidade: nomeCidade, // Usar o nome da cidade em vez do ID
@@ -811,6 +1014,184 @@ const Financeiro = () => {
       console.error('Erro ao excluir registro:', error);
       alert(`Erro ao excluir registro: ${error.message}`);
     }
+  };
+
+  const adicionarNovoRegistro = (agendamentoId, cliente, valor, id) => {
+    try {
+      console.log('Adicionando novo registro');
+      
+      // Verificar se temos cidade e data selecionadas
+      if (!cidadeSelecionada || !dataSelecionada) {
+        alert('Por favor, selecione uma cidade e uma data antes de adicionar um registro.');
+        return;
+      }
+      
+      // Gerar ID temporário para o novo registro
+      const novoId = id || `novo_${Date.now()}`;
+      
+      // Criar novo registro vazio
+      const novoRegistro = {
+        id: novoId,
+        agendamentoId: agendamentoId,
+        cliente: cliente || '',
+        valor: valor || '',
+        tipo: '',
+        formaPagamento: '',
+        situacao: '',
+        observacoes: '',
+        novo: true,
+        editando: true,
+        cidadeId: cidadeSelecionada,
+        dataId: dataSelecionada
+      };
+      
+      // Adicionar à lista de registros
+      setRegistrosFinanceiros(prev => [...prev, novoRegistro]);
+      
+      // Inicializar pagamentos divididos para este registro
+      setPagamentosDivididos(prev => ({
+        ...prev,
+        [novoId]: [{ formaPagamento: '', valor: valor || '' }]
+      }));
+      
+      console.log('Novo registro adicionado:', novoRegistro);
+    } catch (error) {
+      console.error('Erro ao adicionar novo registro:', error);
+      alert(`Erro ao adicionar novo registro: ${error.message}`);
+    }
+  };
+
+  const handlePagamentoDividido = (registroId, index, campo, valor) => {
+    setPagamentosDivididos(prev => {
+      const pagamentosRegistro = [...(prev[registroId] || [])];
+      
+      if (!pagamentosRegistro[index]) {
+        pagamentosRegistro[index] = { formaPagamento: '', valor: '' };
+      }
+      
+      pagamentosRegistro[index] = {
+        ...pagamentosRegistro[index],
+        [campo]: valor
+      };
+      
+      return {
+        ...prev,
+        [registroId]: pagamentosRegistro
+      };
+    });
+  };
+
+  const adicionarPagamento = (id) => {
+    console.log('Adicionando pagamento para registro:', id);
+    console.log('Estado atual dos pagamentos divididos:', pagamentosDivididos);
+    
+    // Verificar se o ID existe no objeto pagamentosDivididos
+    if (!pagamentosDivididos[id]) {
+      console.log('Inicializando pagamentos para o registro:', id);
+      setPagamentosDivididos(prev => ({
+        ...prev,
+        [id]: [{ formaPagamento: '', valor: '' }]
+      }));
+    } else {
+      console.log('Adicionando novo pagamento ao registro existente:', id);
+      setPagamentosDivididos(prev => {
+        const novosPagamentos = {
+          ...prev,
+          [id]: [...prev[id], { formaPagamento: '', valor: '' }]
+        };
+        console.log('Novos pagamentos após adição:', novosPagamentos);
+        return novosPagamentos;
+      });
+    }
+  };
+
+  const removerPagamento = (id, index) => {
+    console.log('Removendo pagamento:', id, index);
+    if (pagamentosDivididos[id] && pagamentosDivididos[id].length > 1) {
+      setPagamentosDivididos(prev => ({
+        ...prev,
+        [id]: prev[id].filter((_, i) => i !== index)
+      }));
+    }
+  };
+
+  const calcularTotalPagamentosDivididos = (registroId) => {
+    const pagamentos = pagamentosDivididos[registroId] || [];
+    return pagamentos.reduce((total, pagamento) => {
+      const valor = pagamento.valor ? parseFloat(pagamento.valor.replace(',', '.')) : 0;
+      return total + (isNaN(valor) ? 0 : valor);
+    }, 0);
+  };
+
+  const atualizarPagamento = (id, index, campo, valor) => {
+    console.log('Atualizando pagamento:', id, index, campo, valor);
+    console.log('Estado atual dos pagamentos divididos:', pagamentosDivididos);
+    
+    if (!pagamentosDivididos[id]) {
+      console.log('Inicializando pagamentos para o registro:', id);
+      setPagamentosDivididos(prev => ({
+        ...prev,
+        [id]: [{ formaPagamento: '', valor: '' }]
+      }));
+      return;
+    }
+    
+    try {
+      const novosPagamentos = [...pagamentosDivididos[id]];
+      
+      if (!novosPagamentos[index]) {
+        console.log('Pagamento não encontrado no índice:', index);
+        novosPagamentos[index] = { formaPagamento: '', valor: '' };
+      }
+      
+      // Se o campo for valor, formatar como moeda
+      if (campo === 'valor') {
+        // Permitir apenas números, vírgula e ponto
+        const valorLimpo = valor.replace(/[^\d,.]/g, '');
+        // Substituir pontos por vírgulas (para garantir que só tenha uma vírgula)
+        const valorFormatado = valorLimpo.replace(/\./g, ',').replace(/,/g, ',');
+        
+        novosPagamentos[index] = {
+          ...novosPagamentos[index],
+          [campo]: valorFormatado
+        };
+      } else {
+        novosPagamentos[index] = {
+          ...novosPagamentos[index],
+          [campo]: valor
+        };
+      }
+      
+      console.log('Novos pagamentos após atualização:', novosPagamentos);
+      
+      setPagamentosDivididos(prev => ({
+        ...prev,
+        [id]: novosPagamentos
+      }));
+    } catch (error) {
+      console.error('Erro ao atualizar pagamento:', error);
+    }
+  };
+
+  // Função para formatar valor como moeda (R$ 0,00)
+  const formatarValorMoeda = (valor) => {
+    if (!valor) return '';
+    
+    // Converter para número
+    let numero = 0;
+    if (typeof valor === 'string') {
+      // Remover caracteres não numéricos, exceto vírgula ou ponto
+      const valorLimpo = valor.replace(/[^\d,.]/g, '');
+      // Substituir vírgula por ponto para cálculos
+      numero = parseFloat(valorLimpo.replace(',', '.'));
+    } else {
+      numero = parseFloat(valor);
+    }
+    
+    if (isNaN(numero)) return '0,00';
+    
+    // Formatar com 2 casas decimais e vírgula
+    return numero.toFixed(2).replace('.', ',');
   };
 
   return (
@@ -941,18 +1322,88 @@ const Financeiro = () => {
                         </td>
                         <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                           {registro.editando || registro.novo ? (
-                            <select
-                              value={registro.formaPagamento || ''}
-                              onChange={(e) => handleChangeRegistro(registro.id, 'formaPagamento', e.target.value)}
-                              style={{ width: '100%' }}
-                            >
-                              <option value="">Selecione</option>
-                              <option value="Dinheiro">Dinheiro</option>
-                              <option value="Cartão">Cartão</option>
-                              <option value="PIX/Pic pay">PIX/Pic pay</option>
-                            </select>
+                            <div>
+                              {(pagamentosDivididos[registro.id] || []).map((pagamento, idx) => (
+                                <div key={idx} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+                                  <select
+                                    value={pagamento.formaPagamento || ''}
+                                    onChange={(e) => atualizarPagamento(registro.id, idx, 'formaPagamento', e.target.value)}
+                                    style={{ marginRight: '5px', flex: '1', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                                  >
+                                    <option value="">Selecione</option>
+                                    <option value="Dinheiro">Dinheiro</option>
+                                    <option value="Cartão">Cartão</option>
+                                    <option value="PIX/Pic pay">PIX/Pic pay</option>
+                                  </select>
+                                  <input
+                                    type="text"
+                                    placeholder="Valor"
+                                    value={pagamento.valor || ''}
+                                    onChange={(e) => atualizarPagamento(registro.id, idx, 'valor', e.target.value)}
+                                    style={{ width: '80px', marginRight: '5px', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                                  />
+                                  <button 
+                                    onClick={() => removerPagamento(registro.id, idx)}
+                                    disabled={pagamentosDivididos[registro.id].length <= 1}
+                                    style={{ 
+                                      background: pagamentosDivididos[registro.id].length <= 1 ? '#ccc' : '#ff4d4d', 
+                                      border: 'none', 
+                                      color: 'white', 
+                                      cursor: pagamentosDivididos[registro.id].length <= 1 ? 'not-allowed' : 'pointer',
+                                      borderRadius: '4px',
+                                      padding: '8px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
+                                    }}
+                                  >
+                                    <FaTrash />
+                                  </button>
+                                </div>
+                              ))}
+                              <div style={{ marginTop: '5px' }}>
+                                <button 
+                                  onClick={() => adicionarPagamento(registro.id)}
+                                  style={{ 
+                                    backgroundColor: '#4CAF50',
+                                    color: 'white',
+                                    border: 'none', 
+                                    borderRadius: '4px',
+                                    padding: '8px 12px',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                  }}
+                                >
+                                  <FaPlus style={{ marginRight: '5px' }} /> Adicionar forma de pagamento
+                                </button>
+                              </div>
+                              <div style={{ 
+                                marginTop: '8px', 
+                                fontSize: '14px', 
+                                color: Math.abs(calcularTotalPagamentosDivididos(registro.id) - parseFloat(registro.valor?.replace(',', '.') || 0)) < 0.01 ? 'green' : 'red',
+                                fontWeight: 'bold'
+                              }}>
+                                Total: R$ {formatarValorMoeda(calcularTotalPagamentosDivididos(registro.id))} / 
+                                R$ {registro.valor || '0,00'}
+                                {Math.abs(calcularTotalPagamentosDivididos(registro.id) - parseFloat(registro.valor?.replace(',', '.') || 0)) < 0.01 
+                                  ? ' ✓' 
+                                  : ' ✗'}
+                              </div>
+                            </div>
                           ) : (
-                            registro.formaPagamento
+                            <div>
+                              {registro.formasPagamento && Array.isArray(registro.formasPagamento) ? (
+                                registro.formasPagamento.map((p, i) => (
+                                  <div key={i} style={{ marginBottom: '4px' }}>
+                                    <strong>{p.formaPagamento}:</strong> R$ {p.valor}
+                                  </div>
+                                ))
+                              ) : (
+                                registro.formaPagamento
+                              )}
+                            </div>
                           )}
                         </td>
                         <td style={{ border: '1px solid #ddd', padding: '8px' }}>
@@ -1027,22 +1478,51 @@ const Financeiro = () => {
                     <tr>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>Particular</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countParticular}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.totalParticular.toFixed(2)}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalParticular)}</td>
                     </tr>
                     <tr>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>Convênio</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countConvenio}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.totalConvenio.toFixed(2)}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalConvenio)}</td>
                     </tr>
                     <tr>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>Campanha</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countCampanha}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.totalCampanha.toFixed(2)}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalCampanha)}</td>
                     </tr>
                     <tr style={{ fontWeight: 'bold' }}>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>Total</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countTotal}</td>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.totalGeral.toFixed(2)}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalGeral)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <h3>Por Forma de Pagamento</h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Forma de Pagamento</th>
+                      <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Quantidade</th>
+                      <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Total (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>Dinheiro</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countDinheiro}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalDinheiro)}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>Cartão</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countCartao}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalCartao)}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>PIX/Pic pay</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countPix}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalPix)}</td>
                     </tr>
                   </tbody>
                 </table>
