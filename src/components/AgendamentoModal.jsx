@@ -180,34 +180,36 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
   }, [isOpen, fetchScheduleConfigs, fetchCities, fetchAvailableDates]);
 
   useEffect(() => {
-    if (selectedCity && availableDates.length > 0) {
-      // Buscar cidade pelo ID
-      const cityObj = cities.find(city => city.id === selectedCity);
+    if (selectedCity) {
+      // Filtrar datas disponíveis para a cidade selecionada
+      const filteredDates = availableDates.filter(date => {
+        // Normalizar os nomes das cidades para comparação (remover acentos, converter para minúsculas)
+        const normalizeString = (str) => {
+          return str
+            ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+            : '';
+        };
+        
+        const normalizedDateCity = normalizeString(date.cidade);
+        const normalizedSelectedCity = normalizeString(cities.find(c => c.id === selectedCity)?.name);
+        
+        // Verificar se a data é para a cidade selecionada
+        return normalizedDateCity === normalizedSelectedCity;
+      });
       
-      if (cityObj) {
-        const cityName = cityObj.name;
+      // Ordenar as datas em ordem crescente (da mais próxima para a mais distante)
+      const sortedDates = [...filteredDates].sort((a, b) => {
+        // Converter as strings de data para objetos Date para comparação
+        const [dayA, monthA, yearA] = a.data.split('/').map(Number);
+        const [dayB, monthB, yearB] = b.data.split('/').map(Number);
         
-        // Filtrar todas as datas para esta cidade, incluindo as marcadas como indisponíveis
-        // Diferente do AgendamentoForm, aqui não filtramos pelo status
-        const filteredDates = availableDates.filter(date => {
-          // Normalizar os nomes das cidades para comparação
-          const normalizeString = (str) => {
-            return str
-              ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
-              : '';
-          };
-          
-          const normalizedDateCity = normalizeString(date.cidade);
-          const normalizedSelectedCity = normalizeString(cityName);
-          
-          return normalizedDateCity === normalizedSelectedCity;
-        });
+        const dateA = new Date(yearA, monthA - 1, dayA);
+        const dateB = new Date(yearB, monthB - 1, dayB);
         
-        console.log(`Datas filtradas para a cidade ${cityName}:`, filteredDates);
-        setFilteredAvailableDates(filteredDates);
-      } else {
-        setFilteredAvailableDates([]);
-      }
+        return dateA - dateB; // Ordem crescente
+      });
+      
+      setFilteredAvailableDates(sortedDates);
     } else {
       setFilteredAvailableDates([]);
     }
