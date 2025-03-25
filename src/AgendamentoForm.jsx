@@ -285,26 +285,58 @@ function AgendamentoForm() {
       const cityConfig = scheduleConfigs[selectedCity];
       if (cityConfig) {
         const slots = [];
+        
+        // Função auxiliar para formatar horário
+        const formatTime = (hours, minutes) => {
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        };
+        
+        // Função para adicionar horários em um intervalo
         const addTimeSlots = (start, end, interval) => {
-          const startTime = new Date(`2000-01-01T${start}`);
-          const endTime = new Date(`2000-01-01T${end}`);
+          const [startHours, startMinutes] = start.split(':').map(Number);
+          const [endHours, endMinutes] = end.split(':').map(Number);
           
-          while (startTime < endTime) {
-            slots.push(startTime.toLocaleTimeString('pt-BR', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false 
-            }));
-            startTime.setMinutes(startTime.getMinutes() + interval);
+          let currentHours = startHours;
+          let currentMinutes = startMinutes;
+          
+          console.log(`[AgendamentoForm] Gerando horários de ${start} até ${end} com intervalo de ${interval} minutos`);
+          
+          while (
+            currentHours < endHours || 
+            (currentHours === endHours && currentMinutes < endMinutes)
+          ) {
+            const timeStr = formatTime(currentHours, currentMinutes);
+            console.log(`[AgendamentoForm] Adicionando horário: ${timeStr}`);
+            slots.push(timeStr);
+            
+            // Avançar para o próximo horário
+            currentMinutes += interval;
+            if (currentMinutes >= 60) {
+              currentHours += Math.floor(currentMinutes / 60);
+              currentMinutes %= 60;
+            }
           }
         };
 
+        // Garantir que o horário da manhã comece às 08:00
+        const horarios = {
+          manhaInicio: cityConfig.horarios?.manhaInicio || '08:00',
+          manhaFim: cityConfig.horarios?.manhaFim || '12:00',
+          tardeInicio: cityConfig.horarios?.tardeInicio || '14:00',
+          tardeFim: cityConfig.horarios?.tardeFim || '18:00'
+        };
+
         if (cityConfig.periodoManha) {
-          addTimeSlots(cityConfig.horarios.manhaInicio, cityConfig.horarios.manhaFim, cityConfig.intervalo);
+          console.log(`[AgendamentoForm] Configuração período manhã:`, horarios.manhaInicio, horarios.manhaFim);
+          addTimeSlots(horarios.manhaInicio, horarios.manhaFim, cityConfig.intervalo);
         }
         if (cityConfig.periodoTarde) {
-          addTimeSlots(cityConfig.horarios.tardeInicio, cityConfig.horarios.tardeFim, cityConfig.intervalo);
+          console.log(`[AgendamentoForm] Configuração período tarde:`, horarios.tardeInicio, horarios.tardeFim);
+          addTimeSlots(horarios.tardeInicio, horarios.tardeFim, cityConfig.intervalo);
         }
+
+        console.log(`[AgendamentoForm] Total de slots gerados: ${slots.length}`);
+        console.log('[AgendamentoForm] Slots:', slots);
 
         // Buscar horários já agendados e filtrar da lista
         const fetchBookedTimes = async () => {
@@ -317,19 +349,24 @@ function AgendamentoForm() {
               const cityName = cityDoc.name || cityDoc.nome;
               const dateString = dateDoc.data;
               
+              console.log(`[AgendamentoForm] Buscando horários agendados para: Cidade=${cityName}, Data=${dateString}`);
+              
               // Buscar horários já agendados
               const bookedTimes = await firebaseService.getBookedTimes(cityName, dateString);
+              
+              console.log(`[AgendamentoForm] Horários já agendados: ${bookedTimes.join(', ') || 'Nenhum'}`);
               
               // Filtrar os horários disponíveis, removendo os já agendados
               const availableSlots = slots.filter(slot => !bookedTimes.includes(slot));
               
-              console.log(`Total de horários: ${slots.length}, Disponíveis: ${availableSlots.length}`);
+              console.log(`[AgendamentoForm] Total de horários: ${slots.length}, Disponíveis: ${availableSlots.length}`);
+              console.log('[AgendamentoForm] Horários disponíveis:', availableSlots);
               setAvailableTimes(availableSlots);
             } else {
               setAvailableTimes(slots);
             }
           } catch (error) {
-            console.error('Erro ao buscar horários agendados:', error);
+            console.error('[AgendamentoForm] Erro ao buscar horários agendados:', error);
             setAvailableTimes(slots);
           }
         };
@@ -621,7 +658,7 @@ function AgendamentoForm() {
               value={selectedTime}
               onChange={(e) => setSelectedTime(e.target.value)}
               error={errors.time}
-              disabled={!selectedCity || !selectedDate}
+              disabled={!selectedCity || !selectedDate || availableTimes.length === 0}
             >
               <option value="">Selecione um horário</option>
               {availableTimes.map(time => (

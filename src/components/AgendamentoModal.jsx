@@ -64,9 +64,17 @@ const Label = styled.label`
 `;
 
 const Select = styled.select`
+  width: 100%;
   padding: 10px;
-  border: 1px solid #ddd;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
   border-radius: 4px;
+  font-size: 16px;
+  
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+  }
 `;
 
 const Input = styled.input`
@@ -235,18 +243,76 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
         intervalo: 10
       };
       
-      const slots = [];
-      const addTimeSlots = (start, end, interval) => {
-        const startTime = new Date(`2000-01-01T${start}`);
-        const endTime = new Date(`2000-01-01T${end}`);
+      // Verificar se há configuração específica para esta cidade
+      if (Array.isArray(scheduleConfigs)) {
+        const scheduleConfig = scheduleConfigs.find(config => config.cityId === selectedCity);
+        if (scheduleConfig) {
+          console.log('Usando configuração específica para a cidade:', scheduleConfig);
+          cityConfig.periodoManha = scheduleConfig.periodoManha;
+          cityConfig.periodoTarde = scheduleConfig.periodoTarde;
+          
+          // Garantir que o horário da manhã comece às 08:00 se não estiver explicitamente definido
+          if (scheduleConfig.horarios) {
+            cityConfig.horarios.manhaInicio = scheduleConfig.horarios.manhaInicio || '08:00';
+            cityConfig.horarios.manhaFim = scheduleConfig.horarios.manhaFim || '12:00';
+            cityConfig.horarios.tardeInicio = scheduleConfig.horarios.tardeInicio || '14:00';
+            cityConfig.horarios.tardeFim = scheduleConfig.horarios.tardeFim || '18:00';
+          }
+          
+          cityConfig.intervalo = scheduleConfig.intervalo || cityConfig.intervalo;
+        }
+      } else if (scheduleConfigs && scheduleConfigs[selectedCity]) {
+        // Se scheduleConfigs for um objeto com chaves de cityId
+        const scheduleConfig = scheduleConfigs[selectedCity];
+        console.log('Usando configuração específica para a cidade (objeto):', scheduleConfig);
+        cityConfig.periodoManha = scheduleConfig.periodoManha;
+        cityConfig.periodoTarde = scheduleConfig.periodoTarde;
         
-        while (startTime < endTime) {
-          slots.push(startTime.toLocaleTimeString('pt-BR', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: false 
-          }));
-          startTime.setMinutes(startTime.getMinutes() + interval);
+        // Garantir que o horário da manhã comece às 08:00 se não estiver explicitamente definido
+        if (scheduleConfig.horarios) {
+          cityConfig.horarios.manhaInicio = scheduleConfig.horarios.manhaInicio || '08:00';
+          cityConfig.horarios.manhaFim = scheduleConfig.horarios.manhaFim || '12:00';
+          cityConfig.horarios.tardeInicio = scheduleConfig.horarios.tardeInicio || '14:00';
+          cityConfig.horarios.tardeFim = scheduleConfig.horarios.tardeFim || '18:00';
+        }
+        
+        cityConfig.intervalo = scheduleConfig.intervalo || cityConfig.intervalo;
+      }
+      
+      console.log('Configuração de horários usada:', cityConfig);
+      
+      // Gerar todos os horários possíveis
+      const slots = [];
+      
+      // Função auxiliar para formatar horário
+      const formatTime = (hours, minutes) => {
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      };
+      
+      // Função para adicionar horários em um intervalo
+      const addTimeSlots = (start, end, interval) => {
+        const [startHours, startMinutes] = start.split(':').map(Number);
+        const [endHours, endMinutes] = end.split(':').map(Number);
+        
+        let currentHours = startHours;
+        let currentMinutes = startMinutes;
+        
+        console.log(`Gerando horários de ${start} até ${end} com intervalo de ${interval} minutos`);
+        
+        while (
+          currentHours < endHours || 
+          (currentHours === endHours && currentMinutes < endMinutes)
+        ) {
+          const timeStr = formatTime(currentHours, currentMinutes);
+          console.log(`Adicionando horário: ${timeStr}`);
+          slots.push(timeStr);
+          
+          // Avançar para o próximo horário
+          currentMinutes += interval;
+          if (currentMinutes >= 60) {
+            currentHours += Math.floor(currentMinutes / 60);
+            currentMinutes %= 60;
+          }
         }
       };
       
@@ -256,6 +322,9 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
       if (cityConfig.periodoTarde) {
         addTimeSlots(cityConfig.horarios.tardeInicio, cityConfig.horarios.tardeFim, cityConfig.intervalo);
       }
+      
+      console.log(`Total de slots gerados: ${slots.length}`);
+      console.log('Slots:', slots);
       
       // Buscar horários já agendados e filtrar da lista
       const fetchBookedTimes = async () => {
@@ -288,6 +357,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
             const availableSlots = slots.filter(slot => !bookedTimes.includes(slot));
             
             console.log(`Total de horários: ${slots.length}, Disponíveis: ${availableSlots.length}`);
+            console.log('Horários disponíveis:', availableSlots);
             
             setAvailableTimes(availableSlots);
           } else {
@@ -309,7 +379,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
       setAvailableTimes([]);
       setSelectedTime('');
     }
-  }, [selectedCity, selectedDate, availableDates, cities, doctors]);
+  }, [selectedCity, selectedDate, availableDates, cities, doctors, scheduleConfigs]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -461,7 +531,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
               <Select
                 value={selectedTime}
                 onChange={(e) => setSelectedTime(e.target.value)}
-                disabled={!selectedCity || !selectedDate}
+                disabled={!selectedCity || !selectedDate || availableTimes.length === 0}
               >
                 <option value="">Selecione um horário</option>
                 {availableTimes.map(time => (
