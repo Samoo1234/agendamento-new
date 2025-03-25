@@ -5,6 +5,7 @@ import { collection, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firesto
 import { db } from './config/firebase';
 import jsPDF from 'jspdf';
 import useStore from './store/useStore';
+import AgendamentoModal from './components/AgendamentoModal';
 
 const Container = styled.div`
   padding: 20px;
@@ -20,6 +21,11 @@ const TopContainer = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 10px;
 `;
 
 const Button = styled.button`
@@ -104,7 +110,7 @@ const GerenciarClientes = () => {
   const [cidadeFiltro, setCidadeFiltro] = useState('');
   const [dataFiltro, setDataFiltro] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('');
-
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const { cities } = useStore();
 
   const fetchAgendamentos = async () => {
@@ -310,9 +316,14 @@ const GerenciarClientes = () => {
     <Container>
       <TopContainer>
         <Title>Gerenciar Agendamentos</Title>
-        <Button $variant="pdf" onClick={generatePDF}>
-          Gerar PDF
-        </Button>
+        <ButtonGroup>
+          <Button $variant="primary" onClick={() => setIsModalOpen(true)}>
+            Novo Agendamento
+          </Button>
+          <Button $variant="pdf" onClick={generatePDF}>
+            Gerar PDF
+          </Button>
+        </ButtonGroup>
       </TopContainer>
       
       <FilterContainer>
@@ -389,6 +400,16 @@ const GerenciarClientes = () => {
           ))}
         </tbody>
       </Table>
+      
+      {/* Modal de Agendamento */}
+      <AgendamentoModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSuccess={() => {
+          // Recarregar a lista de agendamentos após criar um novo
+          fetchAgendamentos();
+        }}
+      />
     </Container>
   );
 };
