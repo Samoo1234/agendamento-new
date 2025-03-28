@@ -254,7 +254,22 @@ const GerenciarClientes = () => {
     doc.setFont(undefined, 'normal');
     doc.setFontSize(10);
     
-    agendamentosFiltrados.forEach((agendamento, index) => {
+    // Ordenar agendamentos por horário antes de gerar o PDF
+    const agendamentosOrdenados = [...agendamentosFiltrados].sort((a, b) => {
+      // Converter horários para minutos para facilitar a comparação
+      const getMinutos = (horario) => {
+        if (!horario) return 0;
+        const [horas, minutos] = horario.split(':').map(Number);
+        return (horas * 60) + minutos;
+      };
+      
+      const minutosA = getMinutos(a.horario);
+      const minutosB = getMinutos(b.horario);
+      
+      return minutosA - minutosB; // Ordem crescente (manhã para tarde)
+    });
+    
+    agendamentosOrdenados.forEach((agendamento, index) => {
       // Verifica se precisa criar nova página
       if (yPos > pageHeight - 25) {
         doc.addPage();
