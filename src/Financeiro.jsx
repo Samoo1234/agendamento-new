@@ -1286,224 +1286,244 @@ const Financeiro = () => {
                       </td>
                     </tr>
                   ) : (
-                    registrosFinanceiros.map((registro) => (
-                      <tr key={registro.id}>
-                        <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                          {registro.cliente}
-                        </td>
-                        <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                          {registro.editando || registro.novo ? (
-                            <input
-                              type="text"
-                              value={registro.valor || ''}
-                              onChange={(e) => handleChangeRegistro(registro.id, 'valor', e.target.value)}
-                              style={{ width: '100%' }}
-                            />
-                          ) : (
-                            formatarValorMoeda(registro.valor)
-                          )}
-                        </td>
-                        <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                          {registro.editando || registro.novo ? (
-                            <select
-                              value={registro.tipo || ''}
-                              onChange={(e) => handleChangeRegistro(registro.id, 'tipo', e.target.value)}
-                              style={{ width: '100%' }}
-                            >
-                              <option value="">Selecione</option>
-                              <option value="Particular">Particular</option>
-                              <option value="Convênio">Convênio</option>
-                              <option value="Campanha">Campanha</option>
-                            </select>
-                          ) : (
-                            registro.tipo
-                          )}
-                        </td>
-                        <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                          {registro.editando || registro.novo ? (
-                            <div>
-                              {(pagamentosDivididos[registro.id] || []).map((pagamento, idx) => (
-                                <div key={idx} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
-                                  <select
-                                    value={pagamento.formaPagamento || ''}
-                                    onChange={(e) => atualizarPagamento(registro.id, idx, 'formaPagamento', e.target.value)}
-                                    style={{ marginRight: '5px', flex: '1', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                                  >
-                                    <option value="">Selecione</option>
-                                    <option value="Dinheiro">Dinheiro</option>
-                                    <option value="Cartão">Cartão</option>
-                                    <option value="PIX/Pic pay">PIX/Pic pay</option>
-                                  </select>
-                                  <input
-                                    type="text"
-                                    placeholder="Valor"
-                                    value={pagamento.valor || ''}
-                                    onChange={(e) => atualizarPagamento(registro.id, idx, 'valor', e.target.value)}
-                                    style={{ width: '80px', marginRight: '5px', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                                  />
+                    // Ordenar registros por horário de agendamento
+                    [...registrosFinanceiros]
+                      .sort((a, b) => {
+                        // Buscar agendamentos correspondentes
+                        const agendamentoA = agendamentos.find(ag => ag.id === a.agendamentoId);
+                        const agendamentoB = agendamentos.find(ag => ag.id === b.agendamentoId);
+                        
+                        // Função para converter horário para minutos
+                        const getMinutos = (horario) => {
+                          if (!horario) return 0;
+                          const [horas, minutos] = horario.split(':').map(Number);
+                          return (horas * 60) + minutos;
+                        };
+                        
+                        // Comparar horários
+                        const minutosA = agendamentoA?.horario ? getMinutos(agendamentoA.horario) : 0;
+                        const minutosB = agendamentoB?.horario ? getMinutos(agendamentoB.horario) : 0;
+                        
+                        return minutosA - minutosB;
+                      })
+                      .map((registro) => (
+                        <tr key={registro.id}>
+                          <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                            {registro.cliente}
+                          </td>
+                          <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                            {registro.editando || registro.novo ? (
+                              <input
+                                type="text"
+                                value={registro.valor || ''}
+                                onChange={(e) => handleChangeRegistro(registro.id, 'valor', e.target.value)}
+                                style={{ width: '100%' }}
+                              />
+                            ) : (
+                              formatarValorMoeda(registro.valor)
+                            )}
+                          </td>
+                          <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                            {registro.editando || registro.novo ? (
+                              <select
+                                value={registro.tipo || ''}
+                                onChange={(e) => handleChangeRegistro(registro.id, 'tipo', e.target.value)}
+                                style={{ width: '100%' }}
+                              >
+                                <option value="">Selecione</option>
+                                <option value="Particular">Particular</option>
+                                <option value="Convênio">Convênio</option>
+                                <option value="Campanha">Campanha</option>
+                              </select>
+                            ) : (
+                              registro.tipo
+                            )}
+                          </td>
+                          <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                            {registro.editando || registro.novo ? (
+                              <div>
+                                {(pagamentosDivididos[registro.id] || []).map((pagamento, idx) => (
+                                  <div key={idx} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+                                    <select
+                                      value={pagamento.formaPagamento || ''}
+                                      onChange={(e) => atualizarPagamento(registro.id, idx, 'formaPagamento', e.target.value)}
+                                      style={{ marginRight: '5px', flex: '1', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                                    >
+                                      <option value="">Selecione</option>
+                                      <option value="Dinheiro">Dinheiro</option>
+                                      <option value="Cartão">Cartão</option>
+                                      <option value="PIX/Pic pay">PIX/Pic pay</option>
+                                    </select>
+                                    <input
+                                      type="text"
+                                      placeholder="Valor"
+                                      value={pagamento.valor || ''}
+                                      onChange={(e) => atualizarPagamento(registro.id, idx, 'valor', e.target.value)}
+                                      style={{ width: '80px', marginRight: '5px', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                                    />
+                                    <button 
+                                      onClick={() => removerPagamento(registro.id, idx)}
+                                      disabled={pagamentosDivididos[registro.id].length <= 1}
+                                      style={{ 
+                                        background: pagamentosDivididos[registro.id].length <= 1 ? '#ccc' : '#ff4d4d', 
+                                        border: 'none', 
+                                        color: 'white', 
+                                        cursor: pagamentosDivididos[registro.id].length <= 1 ? 'not-allowed' : 'pointer',
+                                        borderRadius: '4px',
+                                        padding: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                      }}
+                                    >
+                                      <FaTrash />
+                                    </button>
+                                  </div>
+                                ))}
+                                <div style={{ marginTop: '5px' }}>
                                   <button 
-                                    onClick={() => removerPagamento(registro.id, idx)}
-                                    disabled={pagamentosDivididos[registro.id].length <= 1}
+                                    onClick={() => adicionarPagamento(registro.id)}
                                     style={{ 
-                                      background: pagamentosDivididos[registro.id].length <= 1 ? '#ccc' : '#ff4d4d', 
+                                      backgroundColor: '#000033', 
+                                      color: 'white',
                                       border: 'none', 
-                                      color: 'white', 
-                                      cursor: pagamentosDivididos[registro.id].length <= 1 ? 'not-allowed' : 'pointer',
                                       borderRadius: '4px',
-                                      padding: '8px',
+                                      padding: '8px 12px',
+                                      fontSize: '12px',
+                                      cursor: 'pointer',
                                       display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center'
+                                      alignItems: 'center'
                                     }}
                                   >
-                                    <FaTrash />
+                                    <FaPlus style={{ marginRight: '5px' }} /> Adicionar forma de pagamento
                                   </button>
                                 </div>
-                              ))}
-                              <div style={{ marginTop: '5px' }}>
-                                <button 
-                                  onClick={() => adicionarPagamento(registro.id)}
-                                  style={{ 
-                                    backgroundColor: '#000033', 
-                                    color: 'white',
-                                    border: 'none', 
-                                    borderRadius: '4px',
-                                    padding: '8px 12px',
-                                    fontSize: '12px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center'
-                                  }}
-                                >
-                                  <FaPlus style={{ marginRight: '5px' }} /> Adicionar forma de pagamento
-                                </button>
+                                <div style={{ 
+                                  marginTop: '8px', 
+                                  fontSize: '14px', 
+                                  color: Math.abs(calcularTotalPagamentosDivididos(registro.id) - parseFloat(registro.valor?.replace(',', '.') || 0)) < 0.01 ? 'green' : 'red',
+                                  fontWeight: 'bold'
+                                }}>
+                                  Total: R$ {formatarValorMoeda(calcularTotalPagamentosDivididos(registro.id))} / 
+                                  R$ {formatarValorMoeda(registro.valor || '0,00')}
+                                  {Math.abs(calcularTotalPagamentosDivididos(registro.id) - parseFloat(registro.valor?.replace(',', '.') || 0)) < 0.01 
+                                    ? ' ✓' 
+                                    : ' ✗'}
+                                </div>
                               </div>
-                              <div style={{ 
-                                marginTop: '8px', 
-                                fontSize: '14px', 
-                                color: Math.abs(calcularTotalPagamentosDivididos(registro.id) - parseFloat(registro.valor?.replace(',', '.') || 0)) < 0.01 ? 'green' : 'red',
-                                fontWeight: 'bold'
-                              }}>
-                                Total: R$ {formatarValorMoeda(calcularTotalPagamentosDivididos(registro.id))} / 
-                                R$ {formatarValorMoeda(registro.valor || '0,00')}
-                                {Math.abs(calcularTotalPagamentosDivididos(registro.id) - parseFloat(registro.valor?.replace(',', '.') || 0)) < 0.01 
-                                  ? ' ✓' 
-                                  : ' ✗'}
+                            ) : (
+                              <div>
+                                {registro.formasPagamento && Array.isArray(registro.formasPagamento) ? (
+                                  registro.formasPagamento.map((p, i) => (
+                                    <div key={i} style={{ marginBottom: '4px' }}>
+                                      <strong>{p.formaPagamento}:</strong> R$ {formatarValorMoeda(p.valor)}
+                                    </div>
+                                  ))
+                                ) : (
+                                  registro.formaPagamento
+                                )}
                               </div>
-                            </div>
-                          ) : (
-                            <div>
-                              {registro.formasPagamento && Array.isArray(registro.formasPagamento) ? (
-                                registro.formasPagamento.map((p, i) => (
-                                  <div key={i} style={{ marginBottom: '4px' }}>
-                                    <strong>{p.formaPagamento}:</strong> R$ {formatarValorMoeda(p.valor)}
-                                  </div>
-                                ))
-                              ) : (
-                                registro.formaPagamento
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                          {registro.editando || registro.novo ? (
-                            <select
-                              value={registro.situacao || ''}
-                              onChange={(e) => handleChangeRegistro(registro.id, 'situacao', e.target.value)}
-                              style={{ width: '100%' }}
-                            >
-                              <option value="">Selecione</option>
-                              <option value="Caso Clínico">Caso Clínico</option>
-                              <option value="Efetivação">Efetivação</option>
-                              <option value="Perda">Perda</option>
-                            </select>
-                          ) : (
-                            registro.situacao
-                          )}
-                        </td>
-                        <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                          {registro.editando || registro.novo ? (
-                            <input
-                              type="text"
-                              value={registro.observacoes || ''}
-                              onChange={(e) => handleChangeRegistro(registro.id, 'observacoes', e.target.value)}
-                              style={{ width: '100%' }}
-                            />
-                          ) : (
-                            registro.observacoes
-                          )}
-                        </td>
-                        <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                          {registro.novo ? (
-                            <Button 
-                              onClick={() => salvarNovoRegistro(registro)}
-                              style={{ 
-                                backgroundColor: '#000033', 
-                                marginBottom: '2px',
-                                width: '100px',
-                                textAlign: 'center'
-                              }}
-                            >
-                              Salvar
-                            </Button>
-                          ) : (
-                            <>
-                              {registro.editando ? (
-                                <>
-                                  <Button 
-                                    onClick={() => salvarEdicaoRegistro(registro)}
-                                    style={{ 
-                                      backgroundColor: '#000033', 
-                                      marginBottom: '2px',
-                                      width: '100px',
-                                      textAlign: 'center'
-                                    }}
-                                  >
-                                    Salvar
-                                  </Button>
-                                  <Button 
-                                    onClick={() => cancelarEdicaoRegistro(registro.id)}
-                                    style={{ 
-                                      backgroundColor: '#ff4d4d', 
-                                      marginBottom: '2px',
-                                      width: '100px',
-                                      textAlign: 'center'
-                                    }}
-                                  >
-                                    Cancelar
-                                  </Button>
-                                </>
-                              ) : (
-                                <>
-                                  <Button 
-                                    onClick={() => iniciarEdicaoRegistro(registro.id)}
-                                    style={{ 
-                                      backgroundColor: '#000033', 
-                                      marginBottom: '2px',
-                                      width: '100px',
-                                      textAlign: 'center'
-                                    }}
-                                  >
-                                    Editar
-                                  </Button>
-                                  <Button 
-                                    onClick={() => excluirRegistro(registro.id)}
-                                    style={{ 
-                                      backgroundColor: '#ff4d4d', 
-                                      marginBottom: '2px',
-                                      width: '100px',
-                                      textAlign: 'center'
-                                    }}
-                                  >
-                                    Excluir
-                                  </Button>
-                                </>
-                              )}
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))
+                            )}
+                          </td>
+                          <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                            {registro.editando || registro.novo ? (
+                              <select
+                                value={registro.situacao || ''}
+                                onChange={(e) => handleChangeRegistro(registro.id, 'situacao', e.target.value)}
+                                style={{ width: '100%' }}
+                              >
+                                <option value="">Selecione</option>
+                                <option value="Caso Clínico">Caso Clínico</option>
+                                <option value="Efetivação">Efetivação</option>
+                                <option value="Perda">Perda</option>
+                              </select>
+                            ) : (
+                              registro.situacao
+                            )}
+                          </td>
+                          <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                            {registro.editando || registro.novo ? (
+                              <input
+                                type="text"
+                                value={registro.observacoes || ''}
+                                onChange={(e) => handleChangeRegistro(registro.id, 'observacoes', e.target.value)}
+                                style={{ width: '100%' }}
+                              />
+                            ) : (
+                              registro.observacoes
+                            )}
+                          </td>
+                          <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                            {registro.novo ? (
+                              <Button 
+                                onClick={() => salvarNovoRegistro(registro)}
+                                style={{ 
+                                  backgroundColor: '#000033', 
+                                  marginBottom: '2px',
+                                  width: '100px',
+                                  textAlign: 'center'
+                                }}
+                              >
+                                Salvar
+                              </Button>
+                            ) : (
+                              <>
+                                {registro.editando ? (
+                                  <>
+                                    <Button 
+                                      onClick={() => salvarEdicaoRegistro(registro)}
+                                      style={{ 
+                                        backgroundColor: '#000033', 
+                                        marginBottom: '2px',
+                                        width: '100px',
+                                        textAlign: 'center'
+                                      }}
+                                    >
+                                      Salvar
+                                    </Button>
+                                    <Button 
+                                      onClick={() => cancelarEdicaoRegistro(registro.id)}
+                                      style={{ 
+                                        backgroundColor: '#ff4d4d', 
+                                        marginBottom: '2px',
+                                        width: '100px',
+                                        textAlign: 'center'
+                                      }}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button 
+                                      onClick={() => iniciarEdicaoRegistro(registro.id)}
+                                      style={{ 
+                                        backgroundColor: '#000033', 
+                                        marginBottom: '2px',
+                                        width: '100px',
+                                        textAlign: 'center'
+                                      }}
+                                    >
+                                      Editar
+                                    </Button>
+                                    <Button 
+                                      onClick={() => excluirRegistro(registro.id)}
+                                      style={{ 
+                                        backgroundColor: '#ff4d4d', 
+                                        marginBottom: '2px',
+                                        width: '100px',
+                                        textAlign: 'center'
+                                      }}
+                                    >
+                                      Excluir
+                                    </Button>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>

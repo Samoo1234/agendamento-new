@@ -137,8 +137,11 @@ const GerenciarClientes = () => {
   const datasDisponiveis = [...new Set(
     agendamentos
       .filter(a => a.cidade === cidadeFiltro)
-      .map(a => a.data)
+      .map(a => a.data ? a.data.trim() : a.data)
   )].sort();
+
+  // Log para depuração - Datas disponíveis
+  console.log('Datas disponíveis:', datasDisponiveis);
 
   // Selecionar automaticamente a primeira cidade quando os dados são carregados
   useEffect(() => {
@@ -154,14 +157,51 @@ const GerenciarClientes = () => {
     } else {
       setDataFiltro('');
     }
-  }, [cidadeFiltro, datasDisponiveis]);
+  }, [cidadeFiltro]);
 
   // Filtrar agendamentos com base nos critérios selecionados
   const agendamentosFiltrados = agendamentos.filter(agendamento => {
     const matchCidade = agendamento.cidade === cidadeFiltro;
-    const matchData = agendamento.data === dataFiltro;
+    const matchData = (agendamento.data ? agendamento.data.trim() : agendamento.data) === (dataFiltro ? dataFiltro.trim() : dataFiltro);
     const matchStatus = !statusFiltro || agendamento.status === statusFiltro;
+    
+    // Log para depuração - Verificação de correspondência para data 15/04/2025
+    if (dataFiltro === '15/04/2025' || dataFiltro === '15/04/2025 ') {
+      console.log('Verificando agendamento:', {
+        id: agendamento.id,
+        cidade: agendamento.cidade,
+        cidadeFiltro,
+        matchCidade,
+        data: agendamento.data,
+        dataFiltro,
+        matchData,
+        status: agendamento.status,
+        statusFiltro,
+        matchStatus
+      });
+    }
+    
     return matchCidade && matchData && matchStatus;
+  });
+
+  // Log para depuração - Total de agendamentos filtrados
+  console.log('Total de agendamentos filtrados:', agendamentosFiltrados.length);
+  if (dataFiltro === '15/04/2025') {
+    console.log('Agendamentos para 15/04/2025:', agendamentosFiltrados);
+  }
+
+  // Função para converter horário no formato HH:MM para minutos
+  const getMinutos = (horario) => {
+    if (!horario) return 0;
+    const [horas, minutos] = horario.split(':').map(Number);
+    return (horas * 60) + minutos;
+  };
+
+  // Ordenar agendamentos por horário (do mais cedo para o mais tarde)
+  const agendamentosOrdenados = [...agendamentosFiltrados].sort((a, b) => {
+    const minutosA = getMinutos(a.horario);
+    const minutosB = getMinutos(b.horario);
+    return minutosA - minutosB;
   });
 
   const handleDelete = async (id) => {
@@ -244,10 +284,10 @@ const GerenciarClientes = () => {
     doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
     doc.text('Nome', margin + 5, yPos);
-    doc.text('Cidade', margin + 65, yPos);
-    doc.text('Data', margin + 115, yPos);
-    doc.text('Horário', margin + 150, yPos);
-    doc.text('Status', margin + 185, yPos);
+    doc.text('Telefone', margin + 65, yPos);
+    doc.text('Horário', margin + 115, yPos);
+    doc.text('Status', margin + 150, yPos);
+    doc.text('Observações', margin + 185, yPos);
     yPos += lineHeight + 2;
 
     // Dados com linhas alternadas para melhor legibilidade
@@ -282,10 +322,10 @@ const GerenciarClientes = () => {
         doc.setFontSize(11);
         doc.setFont(undefined, 'bold');
         doc.text('Nome', margin + 5, yPos);
-        doc.text('Cidade', margin + 65, yPos);
-        doc.text('Data', margin + 115, yPos);
-        doc.text('Horário', margin + 150, yPos);
-        doc.text('Status', margin + 185, yPos);
+        doc.text('Telefone', margin + 65, yPos);
+        doc.text('Horário', margin + 115, yPos);
+        doc.text('Status', margin + 150, yPos);
+        doc.text('Observações', margin + 185, yPos);
         yPos += lineHeight + 2;
         doc.setFont(undefined, 'normal');
         doc.setFontSize(10);
@@ -298,10 +338,10 @@ const GerenciarClientes = () => {
       }
 
       doc.text(agendamento.nome?.substring(0, 30) || '', margin + 5, yPos);
-      doc.text(agendamento.cidade || '', margin + 65, yPos);
-      doc.text(agendamento.data || '', margin + 115, yPos);
-      doc.text(agendamento.horario || '', margin + 150, yPos);
-      doc.text(agendamento.status || '', margin + 185, yPos);
+      doc.text(agendamento.telefone || '', margin + 65, yPos);
+      doc.text(agendamento.horario || '', margin + 115, yPos);
+      doc.text(agendamento.status || '', margin + 150, yPos);
+      doc.text(agendamento.descricao?.substring(0, 25) || '', margin + 185, yPos);
       yPos += lineHeight;
     });
 
@@ -355,11 +395,18 @@ const GerenciarClientes = () => {
 
         <Select 
           value={dataFiltro} 
-          onChange={(e) => setDataFiltro(e.target.value)}
+          onChange={(e) => {
+            console.log('Alterando data para:', e.target.value);
+            console.log('Valor anterior:', dataFiltro);
+            setDataFiltro(e.target.value);
+          }}
         >
-          {datasDisponiveis.map(data => (
-            <option key={data} value={data}>{data}</option>
-          ))}
+          {datasDisponiveis.map(data => {
+            console.log('Renderizando opção de data:', data);
+            return (
+              <option key={data} value={data}>{data}</option>
+            );
+          })}
         </Select>
 
         <Select 
@@ -386,7 +433,7 @@ const GerenciarClientes = () => {
           </tr>
         </thead>
         <tbody>
-          {agendamentosFiltrados.map(agendamento => (
+          {agendamentosOrdenados.map(agendamento => (
             <tr key={agendamento.id}>
               <Td>{agendamento.nome}</Td>
               <Td>{agendamento.cidade}</Td>

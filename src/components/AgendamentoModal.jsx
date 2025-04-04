@@ -359,15 +359,50 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
             console.log(`Total de horários: ${slots.length}, Disponíveis: ${availableSlots.length}`);
             console.log('Horários disponíveis:', availableSlots);
             
-            setAvailableTimes(availableSlots);
+            // Ordenar os horários em ordem crescente
+            const sortedSlots = [...availableSlots].sort((a, b) => {
+              // Converter horários para minutos para facilitar a comparação
+              const getMinutos = (horario) => {
+                const [horas, minutos] = horario.split(':').map(Number);
+                return (horas * 60) + minutos;
+              };
+              
+              return getMinutos(a) - getMinutos(b);
+            });
+            
+            console.log('Horários ordenados:', sortedSlots);
+            
+            setAvailableTimes(sortedSlots);
           } else {
             // Se não encontrou a cidade ou a data, mostrar todos os horários
-            setAvailableTimes(slots);
+            // Ordenar os horários em ordem crescente
+            const sortedSlots = [...slots].sort((a, b) => {
+              // Converter horários para minutos para facilitar a comparação
+              const getMinutos = (horario) => {
+                const [horas, minutos] = horario.split(':').map(Number);
+                return (horas * 60) + minutos;
+              };
+              
+              return getMinutos(a) - getMinutos(b);
+            });
+            
+            setAvailableTimes(sortedSlots);
           }
         } catch (error) {
           console.error('Erro ao buscar horários agendados:', error);
           // Em caso de erro, mostrar todos os horários
-          setAvailableTimes(slots);
+          // Ordenar os horários em ordem crescente
+          const sortedSlots = [...slots].sort((a, b) => {
+            // Converter horários para minutos para facilitar a comparação
+            const getMinutos = (horario) => {
+              const [horas, minutos] = horario.split(':').map(Number);
+              return (horas * 60) + minutos;
+            };
+            
+            return getMinutos(a) - getMinutos(b);
+          });
+          
+          setAvailableTimes(sortedSlots);
         }
       };
       
