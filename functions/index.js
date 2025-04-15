@@ -110,12 +110,9 @@ exports.notifyAppointment = functions.firestore
       
       console.log('Enviando dados para webhook do n8n:', JSON.stringify(webhookData));
       
-      // URL do seu webhook n8n - URL real do webhook configurado no n8n
+      // URL do webhook
       const webhookUrl = functions.config().n8n?.webhook_url || 
                         'https://cdpe.criadordigital.cloud/webhook-test/envio%20de%20template';
-      
-      // Também tentar com a URL codificada para garantir compatibilidade
-      const encodedUrl = 'https://cdpe.criadordigital.cloud/webhook-test/envio%20de%20template';
       
       console.log('URL do webhook:', webhookUrl);
       
@@ -123,33 +120,17 @@ exports.notifyAppointment = functions.firestore
       try {
         console.log('Iniciando requisição para o webhook...');
         console.log('Dados sendo enviados:', JSON.stringify(webhookData, null, 2));
+        console.log('URL do webhook:', webhookUrl);
         
-        // Tentar com a URL original
-        console.log('Tentando com a URL original:', webhookUrl);
-        let response;
-        try {
-          response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(webhookData)
-          });
-        } catch (urlError) {
-          console.error('Erro com a URL original:', urlError);
-          console.log('Tentando com a URL codificada:', encodedUrl);
-          
-          // Se falhar, tentar com a URL codificada
-          response = await fetch(encodedUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(webhookData)
-          });
-        }
+        // Enviar requisição para o webhook
+        const response = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(webhookData)
+        });
         
         console.log('Status da resposta:', response.status);
         
@@ -215,42 +196,24 @@ exports.testWebhook = functions.https.onRequest(async (req, res) => {
     
     console.log('Enviando dados de teste para webhook do n8n:', JSON.stringify(testData));
     
-    // URL do webhook do n8n
+    // URL do webhook
     const webhookUrl = 'https://cdpe.criadordigital.cloud/webhook-test/envio%20de%20template';
-    // Também tentar com a URL não codificada para garantir compatibilidade
-    const nonEncodedUrl = 'https://cdpe.criadordigital.cloud/webhook-test/envio de template';
     console.log('URL do webhook:', webhookUrl);
     
     // Enviar dados para o webhook do n8n
     console.log('Iniciando requisição para o webhook...');
     console.log('Dados de teste sendo enviados:', JSON.stringify(testData, null, 2));
+    console.log('URL do webhook:', webhookUrl);
     
-    // Tentar com a URL codificada
-    console.log('Tentando com a URL codificada:', webhookUrl);
-    let response;
-    try {
-      response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(testData)
-      });
-    } catch (urlError) {
-      console.error('Erro com a URL codificada:', urlError);
-      console.log('Tentando com a URL não codificada:', nonEncodedUrl);
-      
-      // Se falhar, tentar com a URL não codificada
-      response = await fetch(nonEncodedUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(testData)
-      });
-    }
+    // Enviar requisição para o webhook
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(testData)
+    });
     
     console.log('Status da resposta:', response.status);
     
