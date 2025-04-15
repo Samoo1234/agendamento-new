@@ -602,56 +602,77 @@ const Financeiro = () => {
   };
 
   const gerarPDF = () => {
-    try {
-      console.log('Gerando PDF...');
+  try {
+    console.log('Gerando PDF...');
+    
+    // Verificar se há registros para gerar o PDF
+    if (!registrosFinanceiros || registrosFinanceiros.length === 0) {
+      alert('Não há registros financeiros para gerar o PDF.');
+      return;
+    }
+    
+    // Criar novo documento PDF
+    const doc = new jsPDF();
+    
+    // Adicionar título
+    const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
+    const nomeCidade = cidadeSelecionadaObj ? cidadeSelecionadaObj.name : 'Desconhecida';
+    
+    const dataObj = datas.find(d => d.id === dataSelecionada);
+    const dataFormatada = dataObj ? dataObj.data : 'Data desconhecida';
+    
+    doc.setFontSize(18);
+    doc.text(`Relatório Financeiro - ${nomeCidade}`, 14, 20);
+    doc.setFontSize(14);
+    doc.text(`Data: ${dataFormatada} (${diaSemana})`, 14, 30);
+    
+    // Adicionar tabela de registros
+    const tableColumn = ["Cliente", "R$", "Tipo", "Forma de Pagamento", "Situação", "Observações"];
+    const tableRows = [];
+    
+    // Função para converter horário para minutos (definida localmente para uso no PDF)
+    const getMinutosLocal = (horario) => {
+      if (!horario) return 0;
+      const [horas, minutos] = horario.split(':').map(Number);
+      return (horas * 60) + minutos;
+    };
+    
+    // Ordenar registros por horário de agendamento (mesma lógica usada no frontend)
+    const registrosOrdenados = [...registrosFinanceiros].sort((a, b) => {
+      // Buscar agendamentos correspondentes
+      const agendamentoA = agendamentos.find(ag => ag.id === a.agendamentoId);
+      const agendamentoB = agendamentos.find(ag => ag.id === b.agendamentoId);
       
-      // Verificar se há registros para gerar o PDF
-      if (!registrosFinanceiros || registrosFinanceiros.length === 0) {
-        alert('Não há registros financeiros para gerar o PDF.');
-        return;
+      // Converter horário para minutos
+      const minutosA = agendamentoA?.horario ? getMinutosLocal(agendamentoA.horario) : 0;
+      const minutosB = agendamentoB?.horario ? getMinutosLocal(agendamentoB.horario) : 0;
+      
+      return minutosA - minutosB;
+    });
+    
+    // Processar registros ordenados
+    registrosOrdenados.forEach(registro => {
+      // Formatar as formas de pagamento para exibição no PDF
+      let formasPagamentoTexto = '';
+      
+      if (registro.formasPagamento && Array.isArray(registro.formasPagamento)) {
+        formasPagamentoTexto = registro.formasPagamento
+          .map(p => `${p.formaPagamento}: R$ ${p.valor}`)
+          .join('\n');
+      } else {
+        formasPagamentoTexto = registro.formaPagamento;
       }
       
-      // Criar novo documento PDF
-      const doc = new jsPDF();
-      
-      // Adicionar título
-      const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
-      const nomeCidade = cidadeSelecionadaObj ? cidadeSelecionadaObj.name : 'Desconhecida';
-      
-      const dataObj = datas.find(d => d.id === dataSelecionada);
-      const dataFormatada = dataObj ? dataObj.data : 'Data desconhecida';
-      
-      doc.setFontSize(18);
-      doc.text(`Relatório Financeiro - ${nomeCidade}`, 14, 20);
-      doc.setFontSize(14);
-      doc.text(`Data: ${dataFormatada} (${diaSemana})`, 14, 30);
-      
-      // Adicionar tabela de registros
-      const tableColumn = ["Cliente", "R$", "Tipo", "Forma de Pagamento", "Situação", "Observações"];
-      const tableRows = [];
-      
-      registrosFinanceiros.forEach(registro => {
-        // Formatar as formas de pagamento para exibição no PDF
-        let formasPagamentoTexto = '';
-        
-        if (registro.formasPagamento && Array.isArray(registro.formasPagamento)) {
-          formasPagamentoTexto = registro.formasPagamento
-            .map(p => `${p.formaPagamento}: R$ ${p.valor}`)
-            .join('\n');
-        } else {
-          formasPagamentoTexto = registro.formaPagamento;
-        }
-        
-        const registroData = [
-          registro.cliente,
-          registro.valor,
-          registro.tipo,
-          formasPagamentoTexto,
-          registro.situacao,
-          registro.observacoes
-        ];
-        tableRows.push(registroData);
-      });
+      const registroData = [
+        registro.cliente,
+        registro.valor,
+        registro.tipo,
+        formasPagamentoTexto,
+        registro.situacao,
+        registro.observacoes
+      ];
+      tableRows.push(registroData);
+    });
       
       // Usar autoTable importado diretamente
       autoTable(doc, {
