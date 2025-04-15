@@ -112,7 +112,7 @@ exports.notifyAppointment = functions.firestore
       
       // URL do seu webhook n8n - URL real do webhook configurado no n8n
       const webhookUrl = functions.config().n8n?.webhook_url || 
-                        'https://cdpe.criadordigital.cloud/webhook/envio%20de%20template';
+                        'https://cdpe.criadordigital.cloud/webhook-test/envio de template';
       
       console.log('URL do webhook:', webhookUrl);
       
@@ -192,7 +192,7 @@ exports.testWebhook = functions.https.onRequest(async (req, res) => {
     console.log('Enviando dados de teste para webhook do n8n:', JSON.stringify(testData));
     
     // URL do webhook do n8n
-    const webhookUrl = 'https://cdpe.criadordigital.cloud/webhook/envio%20de%20template';
+    const webhookUrl = 'https://cdpe.criadordigital.cloud/webhook-test/envio de template';
     console.log('URL do webhook:', webhookUrl);
     
     // Enviar dados para o webhook do n8n
