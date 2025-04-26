@@ -198,6 +198,7 @@ const HistoricoAgendamentos = () => {
   const [filteredAppointments, setFilteredAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cidades, setCidades] = useState([]);
+  const [tiposAgendamento, setTiposAgendamento] = useState({});
   
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
