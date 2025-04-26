@@ -437,11 +437,15 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
   const validateForm = () => {
     const newErrors = {};
     
-    if (!selectedCity) newErrors.city = "Por favor, selecione uma cidade";
-    if (!selectedDate) newErrors.date = "Por favor, selecione uma data";
-    if (!selectedTime) newErrors.time = "Por favor, selecione um horário";
-    if (!name.trim()) newErrors.name = "Por favor, informe seu nome";
-    if (!phone.trim()) newErrors.phone = "Por favor, informe seu telefone";
+    // Se estiver editando, não validar cidade, data e horário
+    if (!appointmentToEdit) {
+      if (!selectedCity) newErrors.city = 'Selecione uma cidade';
+      if (!selectedDate) newErrors.date = 'Selecione uma data';
+      if (!selectedTime) newErrors.time = 'Selecione um horário';
+    }
+    
+    if (!name) newErrors.name = 'Digite seu nome';
+    if (!phone) newErrors.phone = 'Digite seu telefone';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -458,44 +462,58 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
     setIsLoading(true);
     
     try {
-      // Encontrar o objeto da cidade selecionada
-      const selectedCityObject = cities.find(city => city.id === selectedCity);
-      const cityName = selectedCityObject ? selectedCityObject.name : '';
-      
-      // Encontrar o objeto da data selecionada
-      const selectedDateObject = availableDates.find(date => date.id === selectedDate);
-      const dateString = selectedDateObject ? selectedDateObject.data : '';
-      
-      // Encontrar o médico associado à cidade
-      const doctor = doctors.find(doc => {
-        const normalizedDocCity = normalizeString(doc.cidade || '');
-        const normalizedCity = normalizeString(cityName || '');
-        return normalizedDocCity === normalizedCity;
-      });
-      
       // Criar objeto de agendamento
-      const appointmentData = {
+      let appointmentData = {
         nome: name,
         telefone: phone,
-        cidade: cityName,
-        cidadeId: selectedCity,
-        data: dateString,
-        dataId: selectedDate,
-        horario: selectedTime,
-        status: appointmentToEdit ? appointmentToEdit.status : 'pendente',
         observacoes: additionalInfo, // Usar campo observacoes em vez de informacoes
-        updatedAt: serverTimestamp(),
-        medico: doctor ? doctor.nome : '',
-        medicoId: doctor ? doctor.id : ''
+        updatedAt: serverTimestamp()
       };
       
-      // Se estiver editando, atualizar o agendamento existente
       if (appointmentToEdit) {
-        await updateDoc(doc(db, 'agendamentos', appointmentToEdit.id), appointmentData);
+        // Se estiver editando, criar um objeto apenas com os campos que queremos atualizar
+        // Isso evita enviar campos undefined para o Firestore
+        const updateData = {
+          nome: name,
+          telefone: phone,
+          observacoes: additionalInfo || '',
+          updatedAt: serverTimestamp()
+        };
+        
+        // Atualizar o agendamento existente
+        await updateDoc(doc(db, 'agendamentos', appointmentToEdit.id), updateData);
         toast.success('Agendamento atualizado com sucesso!');
       } else {
-        // Se for novo, adicionar createdAt
-        appointmentData.createdAt = serverTimestamp();
+        // Se for um novo agendamento, usar os valores selecionados
+        // Encontrar o objeto da cidade selecionada
+        const selectedCityObject = cities.find(city => city.id === selectedCity);
+        const cityName = selectedCityObject ? selectedCityObject.name : '';
+        
+        // Encontrar o objeto da data selecionada
+        const selectedDateObject = availableDates.find(date => date.id === selectedDate);
+        const dateString = selectedDateObject ? selectedDateObject.data : '';
+        
+        // Encontrar o médico associado à cidade
+        const doctor = doctors.find(doc => {
+          const normalizedDocCity = normalizeString(doc.cidade || '');
+          const normalizedCity = normalizeString(cityName || '');
+          return normalizedDocCity === normalizedCity;
+        });
+        
+        // Adicionar os campos específicos para novo agendamento
+        appointmentData = {
+          ...appointmentData,
+          cidade: cityName,
+          cidadeId: selectedCity,
+          data: dateString,
+          dataId: selectedDate,
+          horario: selectedTime,
+          status: 'pendente',
+          medico: doctor ? doctor.nome : '',
+          medicoId: doctor ? doctor.id : '',
+          createdAt: serverTimestamp()
+        };
+        
         await createAppointment(appointmentData);
         toast.success('Agendamento criado com sucesso! Aguarde confirmação via WhatsApp.');
       }
@@ -534,55 +552,89 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
           <div>Carregando...</div>
         ) : (
           <Form onSubmit={handleSubmit}>
-            <FormGroup>
-              <Label>Cidade</Label>
-              <Select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-              >
-                <option value="">Selecione uma cidade</option>
-                {cities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name}
-                  </option>
-                ))}
-              </Select>
-              {errors.city && <ErrorMessage>{errors.city}</ErrorMessage>}
-            </FormGroup>
-            
-            <FormGroup>
-              <Label>Data</Label>
-              <Select
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                disabled={!selectedCity}
-              >
-                <option value="">Selecione uma data</option>
-                {filteredAvailableDates.map((date) => (
-                  <option key={date.id} value={date.id}>
-                    {date.data} {date.status !== 'Disponível' ? '(Indisponível)' : ''}
-                  </option>
-                ))}
-              </Select>
-              {errors.date && <ErrorMessage>{errors.date}</ErrorMessage>}
-            </FormGroup>
-            
-            <FormGroup>
-              <Label>Horário</Label>
-              <Select
-                value={selectedTime}
-                onChange={(e) => setSelectedTime(e.target.value)}
-                disabled={!selectedCity || !selectedDate || availableTimes.length === 0}
-              >
-                <option value="">Selecione um horário</option>
-                {availableTimes.map(time => (
-                  <option key={time} value={time}>
-                    {time}
-                  </option>
-                ))}
-              </Select>
-              {errors.time && <ErrorMessage>{errors.time}</ErrorMessage>}
-            </FormGroup>
+            {appointmentToEdit ? (
+              // Quando estiver editando, mostrar cidade, data e horário como texto estático
+              <>
+                <FormGroup>
+                  <Label>Cidade</Label>
+                  <div style={{ padding: '10px', border: '1px solid #ddd', borderRadius: '4px', backgroundColor: '#f9f9f9' }}>
+                    {cities.find(city => city.id === selectedCity)?.name || appointmentToEdit.cidade || ''}
+                  </div>
+                </FormGroup>
+                
+                <FormGroup>
+                  <Label>Data</Label>
+                  <div style={{ padding: '10px', border: '1px solid #ddd', borderRadius: '4px', backgroundColor: '#f9f9f9' }}>
+                    {appointmentToEdit.data || ''}
+                  </div>
+                </FormGroup>
+                
+                <FormGroup>
+                  <Label>Horário</Label>
+                  <div style={{ padding: '10px', border: '1px solid #ddd', borderRadius: '4px', backgroundColor: '#f9f9f9' }}>
+                    {appointmentToEdit.horario || ''}
+                  </div>
+                </FormGroup>
+                
+                {/* Campos ocultos para manter os valores originais */}
+                <input type="hidden" value={selectedCity} />
+                <input type="hidden" value={selectedDate} />
+                <input type="hidden" value={selectedTime} />
+              </>
+            ) : (
+              // Quando estiver criando um novo agendamento, mostrar os campos normais
+              <>
+                <FormGroup>
+                  <Label>Cidade</Label>
+                  <Select
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                  >
+                    <option value="">Selecione uma cidade</option>
+                    {cities.map((city) => (
+                      <option key={city.id} value={city.id}>
+                        {city.name}
+                      </option>
+                    ))}
+                  </Select>
+                  {errors.city && <ErrorMessage>{errors.city}</ErrorMessage>}
+                </FormGroup>
+                
+                <FormGroup>
+                  <Label>Data</Label>
+                  <Select
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    disabled={!selectedCity}
+                  >
+                    <option value="">Selecione uma data</option>
+                    {filteredAvailableDates.map((date) => (
+                      <option key={date.id} value={date.id}>
+                        {date.data} {date.status !== 'Disponível' ? '(Indisponível)' : ''}
+                      </option>
+                    ))}
+                  </Select>
+                  {errors.date && <ErrorMessage>{errors.date}</ErrorMessage>}
+                </FormGroup>
+                
+                <FormGroup>
+                  <Label>Horário</Label>
+                  <Select
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    disabled={!selectedCity || !selectedDate || availableTimes.length === 0}
+                  >
+                    <option value="">Selecione um horário</option>
+                    {availableTimes.map(time => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+                  </Select>
+                  {errors.time && <ErrorMessage>{errors.time}</ErrorMessage>}
+                </FormGroup>
+              </>
+            )}
             
             <FormGroup>
               <Label>Nome</Label>
