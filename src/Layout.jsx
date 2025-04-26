@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { useNavigate, Outlet, Link as RouterLink, useLocation } from 'react-router-dom';
 import useStore from './store/useStore';
 import { Toaster } from 'react-hot-toast';
-import { AiOutlineDashboard, AiOutlineCalendar, AiOutlineUser, AiOutlineTeam, AiOutlineLogout, AiOutlineMenu, AiOutlineClose, AiOutlineSetting } from 'react-icons/ai';
+import { AiOutlineDashboard, AiOutlineCalendar, AiOutlineUser, AiOutlineTeam, AiOutlineLogout, AiOutlineMenu, AiOutlineClose, AiOutlineSetting, AiOutlineHistory } from 'react-icons/ai';
 import { BiBuilding } from 'react-icons/bi';
 import { FaMoneyBillWave } from 'react-icons/fa';
 import { ToastContainer } from 'react-toastify';
@@ -141,6 +141,7 @@ function Layout() {
     { icon: <BiBuilding />, text: 'Cidades', path: '/cidades' },
     { icon: <AiOutlineTeam />, text: 'Clientes', path: '/clientes' },
     { icon: <FaMoneyBillWave />, text: 'Financeiro', path: '/financeiro', alwaysShow: true },
+    { icon: <AiOutlineHistory />, text: 'Histórico', path: '/historico' },
     { icon: <AiOutlineSetting />, text: 'Gerenciar Usuários', path: '/gerenciar-usuarios' }
   ];
 

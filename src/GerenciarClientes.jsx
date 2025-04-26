@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import toast from 'react-hot-toast';
-import { collection, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from './config/firebase';
+import * as firebaseService from './services/firebaseService';
 import jsPDF from 'jspdf';
 import useStore from './store/useStore';
 import AgendamentoModal from './components/AgendamentoModal';
@@ -46,6 +47,19 @@ const FilterContainer = styled.div`
   display: flex;
   gap: 20px;
   margin-bottom: 20px;
+`;
+
+const CounterBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #000033;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-left: 10px;
 `;
 
 const Select = styled.select`
@@ -111,27 +125,41 @@ const GerenciarClientes = () => {
   const [dataFiltro, setDataFiltro] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { cities } = useStore();
+  const { cities, appointmentUpdateCounter } = useStore();
 
   const fetchAgendamentos = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'agendamentos'));
-      const agendamentosData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      console.log('Buscando agendamentos ativos (data atual e futura)...');
+      setLoading(true);
+      
+      // Usar a nova função que busca apenas agendamentos ativos
+      const agendamentosData = await firebaseService.getActiveAppointments();
+      
+      console.log(`Encontrados ${agendamentosData.length} agendamentos ativos`);
       setAgendamentos(agendamentosData);
+      
+      // Após atualizar os agendamentos, o contador será recalculado automaticamente
+      // devido à dependência dos filtros
     } catch (error) {
       toast.error('Erro ao carregar agendamentos');
-      console.error('Erro:', error);
+      console.error('Erro ao carregar agendamentos:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  // Buscar agendamentos na inicialização
   useEffect(() => {
     fetchAgendamentos();
   }, []);
+  
+  // Buscar agendamentos novamente quando o contador de atualizações mudar
+  useEffect(() => {
+    if (appointmentUpdateCounter > 0) {
+      console.log(`Contador de atualizações alterado: ${appointmentUpdateCounter}, buscando agendamentos...`);
+      fetchAgendamentos();
+    }
+  }, [appointmentUpdateCounter]);
 
   // Obter datas disponíveis com base na cidade selecionada
   const datasDisponiveis = [...new Set(
@@ -159,7 +187,18 @@ const GerenciarClientes = () => {
     }
   }, [cidadeFiltro]);
 
-  // Filtrar agendamentos com base nos critérios selecionados
+  // Filtrar agendamentos com base apenas na cidade e data selecionadas (para o contador)
+  const agendamentosPorCidadeEData = agendamentos.filter(agendamento => {
+    return (
+      (!cidadeFiltro || agendamento.cidade === cidadeFiltro) &&
+      (!dataFiltro || agendamento.data === dataFiltro)
+    );
+  });
+
+  // Contador de agendamentos para a cidade e data selecionadas
+  const totalAgendamentos = agendamentosPorCidadeEData.length;
+
+  // Filtrar agendamentos com base nos critérios selecionados (incluindo status)
   const agendamentosFiltrados = agendamentos.filter(agendamento => {
     const matchCidade = agendamento.cidade === cidadeFiltro;
     const matchData = (agendamento.data ? agendamento.data.trim() : agendamento.data) === (dataFiltro ? dataFiltro.trim() : dataFiltro);
@@ -409,15 +448,20 @@ const GerenciarClientes = () => {
           })}
         </Select>
 
-        <Select 
-          value={statusFiltro} 
-          onChange={(e) => setStatusFiltro(e.target.value)}
-        >
-          <option value="">Todos os status</option>
-          <option value="pendente">Pendente</option>
-          <option value="confirmado">Confirmado</option>
-          <option value="cancelado">Cancelado</option>
-        </Select>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <Select 
+            value={statusFiltro} 
+            onChange={(e) => setStatusFiltro(e.target.value)}
+          >
+            <option value="">Todos os status</option>
+            <option value="pendente">Pendente</option>
+            <option value="confirmado">Confirmado</option>
+            <option value="cancelado">Cancelado</option>
+          </Select>
+          <CounterBadge title="Total de agendamentos para esta cidade e data">
+            {totalAgendamentos}
+          </CounterBadge>
+        </div>
       </FilterContainer>
 
       <Table>

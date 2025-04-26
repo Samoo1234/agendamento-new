@@ -279,6 +279,41 @@ export const getAppointments = async () => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...sanitizeFirestoreData(doc.data()) }));
 };
 
+// Função para buscar apenas agendamentos ativos (data atual e futura)
+export const getActiveAppointments = async () => {
+  try {
+    // Buscar todos os agendamentos
+    const querySnapshot = await getDocs(collection(db, 'agendamentos'));
+    const allAppointments = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...sanitizeFirestoreData(doc.data())
+    }));
+    
+    // Obter a data atual
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0); // Zerar horas para comparar apenas datas
+    
+    // Filtrar apenas agendamentos ativos (data atual ou futura)
+    const activeAppointments = allAppointments.filter(app => {
+      if (!app.data) return false;
+      
+      // Converter a string de data (DD/MM/YYYY) para objeto Date
+      const [day, month, year] = app.data.split('/').map(Number);
+      const appDate = new Date(year, month - 1, day);
+      appDate.setHours(0, 0, 0, 0);
+      
+      // Verificar se a data é atual ou futura
+      return appDate >= currentDate;
+    });
+    
+    console.log(`Total de agendamentos ativos encontrados: ${activeAppointments.length}`);
+    return activeAppointments;
+  } catch (error) {
+    console.error('Erro ao buscar agendamentos ativos:', error);
+    return [];
+  }
+};
+
 export const checkTimeAvailability = async (cidade, data, horario) => {
   try {
     console.log(`Verificando disponibilidade para: Cidade=${cidade}, Data=${data}, Horário=${horario}`);
@@ -516,6 +551,193 @@ export const getAgendamentosPorData = async (data, cidadeId) => {
     return agendamentos;
   } catch (error) {
     console.error('Erro ao buscar agendamentos:', error);
+    return [];
+  }
+};
+
+// Função para buscar agendamentos históricos com filtros avançados
+export const getHistoricalAppointments = async (filters = {}) => {
+  try {
+    console.log('Buscando agendamentos históricos com filtros:', filters);
+    const { startDate, endDate, cidade, status, searchTerm } = filters;
+    
+    // Primeiro, buscar todas as datas disponíveis para determinar quais datas são históricas
+    const availableDatesSnapshot = await getDocs(collection(db, 'datas_disponiveis'));
+    const availableDates = availableDatesSnapshot.docs.map(doc => {
+      const data = sanitizeFirestoreData(doc.data());
+      return {
+        id: doc.id,
+        data: data.data, // formato DD/MM/YYYY
+        status: data.status
+      };
+    });
+    
+    // Extrair apenas as datas disponíveis (formato DD/MM/YYYY)
+    const activeDates = availableDates
+      .filter(date => date.status === 'Disponível')
+      .map(date => date.data);
+    
+    console.log('Datas disponíveis para agendamento:', activeDates);
+    
+    // Construir a consulta base para agendamentos
+    let appointmentsRef = collection(db, 'agendamentos');
+    let constraints = [];
+    
+    // Adicionar filtros - apenas status, cidade será filtrada depois
+    // para evitar problemas de compatibilidade com os filtros de data
+    if (status) {
+      constraints.push(where('status', '==', status));
+    }
+    
+    // Status já foi adicionado acima
+    
+    // Criar a consulta com os filtros
+    let q;
+    
+    if (constraints.length > 0) {
+      q = query(appointmentsRef, ...constraints);
+    } else {
+      q = query(appointmentsRef);
+    }
+    
+    // Executar a consulta
+    const querySnapshot = await getDocs(q);
+    let appointments = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...sanitizeFirestoreData(doc.data())
+    }));
+    
+    // Obter a data atual para comparações
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0); // Zerar horas para comparar apenas datas
+    
+    // Filtrar apenas agendamentos históricos (datas anteriores à data atual)
+    appointments = appointments.filter(app => {
+      if (!app.data) return false;
+      
+      // Converter a string de data (DD/MM/YYYY) para objeto Date
+      const [day, month, year] = app.data.split('/').map(Number);
+      const appDate = new Date(year, month - 1, day);
+      appDate.setHours(0, 0, 0, 0);
+      
+      // Um agendamento é considerado histórico se sua data é anterior à data atual
+      return appDate < currentDate;
+    });
+    
+    // Aplicar filtro de cidade manualmente para garantir compatibilidade com outros filtros
+    if (cidade) {
+      console.log('Filtrando manualmente por cidade ID:', cidade);
+      console.log('Antes do filtro de cidade:', appointments.length, 'agendamentos');
+      
+      // Verificar o formato dos IDs de cidade nos agendamentos
+      const cidadesNosAgendamentos = new Set();
+      appointments.forEach(app => {
+        if (app.cidade) {
+          cidadesNosAgendamentos.add(app.cidade);
+        }
+      });
+      console.log('IDs de cidades nos agendamentos:', Array.from(cidadesNosAgendamentos));
+      
+      // Primeiro, precisamos buscar o nome da cidade pelo ID
+      try {
+        // Buscar a cidade pelo ID para obter o nome
+        const cityDoc = await getDoc(doc(db, 'cidades', cidade));
+        if (cityDoc.exists()) {
+          const cityData = sanitizeFirestoreData(cityDoc.data());
+          const cityName = cityData.nome || cityData.name;
+          console.log('Nome da cidade selecionada:', cityName);
+          
+          // Filtrar por nome da cidade em vez do ID
+          appointments = appointments.filter(app => {
+            // Verificar se o campo cidade do agendamento corresponde ao nome da cidade
+            return app.cidade === cityName || 
+                   (typeof app.cidade === 'string' && app.cidade.toLowerCase() === cityName.toLowerCase());
+          });
+        } else {
+          console.log('Cidade não encontrada com ID:', cidade);
+          // Se não encontrar a cidade, tentar filtrar pelo ID diretamente
+          appointments = appointments.filter(app => app.cidade === cidade);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar cidade por ID:', error);
+        // Em caso de erro, tentar filtrar pelo ID diretamente
+        appointments = appointments.filter(app => app.cidade === cidade);
+      }
+      
+      console.log('Após filtro de cidade:', appointments.length, 'agendamentos');
+    }
+    
+    // Filtrar por período (client-side)
+    if (startDate || endDate) {
+      appointments = appointments.filter(app => {
+        if (!app.data) return false;
+        
+        // Converter a string de data (DD/MM/YYYY) para objeto Date
+        const [day, month, year] = app.data.split('/').map(Number);
+        const appDate = new Date(year, month - 1, day);
+        appDate.setHours(0, 0, 0, 0);
+        
+        let isAfterStart = true;
+        let isBeforeEnd = true;
+        
+        if (startDate) {
+          const start = new Date(startDate);
+          start.setHours(0, 0, 0, 0);
+          isAfterStart = appDate >= start;
+        }
+        
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          isBeforeEnd = appDate <= end;
+        }
+        
+        return isAfterStart && isBeforeEnd;
+      });
+    }
+    
+    // Filtrar por termo de busca (client-side)
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      appointments = appointments.filter(app => 
+        (app.nome && app.nome.toLowerCase().includes(term)) || 
+        (app.telefone && app.telefone.includes(term))
+      );
+    }
+    
+    // Ordenar por data e horário (mais recentes primeiro)
+    appointments.sort((a, b) => {
+      // Primeiro comparar as datas
+      if (a.data && b.data) {
+        const [dayA, monthA, yearA] = a.data.split('/').map(Number);
+        const [dayB, monthB, yearB] = b.data.split('/').map(Number);
+        
+        const dateA = new Date(yearA, monthA - 1, dayA);
+        const dateB = new Date(yearB, monthB - 1, dayB);
+        
+        const dateDiff = dateB - dateA; // Ordem decrescente (mais recentes primeiro)
+        
+        if (dateDiff !== 0) return dateDiff;
+      }
+      
+      // Se as datas forem iguais, comparar os horários
+      if (a.horario && b.horario) {
+        const [hoursA, minutesA] = a.horario.split(':').map(Number);
+        const [hoursB, minutesB] = b.horario.split(':').map(Number);
+        
+        const minutesA_total = hoursA * 60 + minutesA;
+        const minutesB_total = hoursB * 60 + minutesB;
+        
+        return minutesB_total - minutesA_total; // Ordem decrescente
+      }
+      
+      return 0;
+    });
+    
+    console.log(`Total de agendamentos históricos encontrados: ${appointments.length}`);
+    return appointments;
+  } catch (error) {
+    console.error('Erro ao buscar agendamentos históricos:', error);
     return [];
   }
 };

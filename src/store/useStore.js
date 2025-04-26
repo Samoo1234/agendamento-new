@@ -238,6 +238,8 @@ const useStore = create(
 
       // Agendamentos
       appointments: [],
+      // Contador para forçar atualizações quando novos agendamentos são criados
+      appointmentUpdateCounter: 0,
       fetchAppointments: async () => {
         try {
           set({ isLoading: true });
@@ -248,6 +250,14 @@ const useStore = create(
         } finally {
           set({ isLoading: false });
         }
+      },
+      
+      // Notificar sobre novos agendamentos (usado para atualizar contadores)
+      notifyNewAppointment: () => {
+        console.log('Notificando sobre novo agendamento...');
+        set((state) => ({
+          appointmentUpdateCounter: state.appointmentUpdateCounter + 1
+        }));
       },
       addAppointment: async (appointmentData) => {
         try {
@@ -266,6 +276,10 @@ const useStore = create(
           set({ isLoading: true });
           const newAppointment = await firebaseService.addAppointment(appointmentData);
           set((state) => ({ appointments: [...state.appointments, newAppointment] }));
+          
+          // Notificar sobre o novo agendamento para atualizar contadores
+          get().notifyNewAppointment();
+          
           return newAppointment;
         } catch (error) {
           console.error('Erro ao criar agendamento:', error);
@@ -456,6 +470,22 @@ const useStore = create(
           const agendamentos = await firebaseService.getAgendamentosPorData(data, cidadeId);
           return agendamentos;
         } catch (error) {
+          set({ error: error.message });
+          throw error;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      
+      // Função para buscar agendamentos históricos com filtros avançados
+      getHistoricalAppointments: async (filters = {}) => {
+        try {
+          set({ isLoading: true });
+          console.log('Buscando histórico de agendamentos com filtros:', filters);
+          const appointments = await firebaseService.getHistoricalAppointments(filters);
+          return appointments;
+        } catch (error) {
+          console.error('Erro ao buscar histórico de agendamentos:', error);
           set({ error: error.message });
           throw error;
         } finally {

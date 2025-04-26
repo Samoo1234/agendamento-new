@@ -238,7 +238,8 @@ function AgendamentoForm() {
     createAppointment,
     doctors,
     fetchCities,
-    fetchAvailableDates
+    fetchAvailableDates,
+    notifyNewAppointment
   } = useStore();
 
   const navigate = useNavigate();
@@ -483,6 +484,9 @@ function AgendamentoForm() {
       console.log('Dados do agendamento:', appointmentData);
       
       await createAppointment(appointmentData);
+      
+      // Notificar sobre o novo agendamento para atualizar contadores em outros componentes
+      notifyNewAppointment();
 
       toast.success('Consulta agendada com sucesso! Aguarde a confirmação via WhatsApp.');
       setSelectedCity('');

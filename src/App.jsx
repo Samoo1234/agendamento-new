@@ -13,6 +13,7 @@ import GerenciarUsuarios from './GerenciarUsuarios';
 import AgendamentoForm from './AgendamentoForm';
 import GerenciarClientes from './GerenciarClientes';
 import Financeiro from './Financeiro';
+import HistoricoAgendamentos from './HistoricoAgendamentos';
 
 function App() {
   return (
@@ -51,6 +52,8 @@ function App() {
             <Route path="/financeiro" element={<Financeiro />} />
             {/* Rota alternativa para o financeiro */}
             <Route path="/modulo-financeiro" element={<Financeiro />} />
+            {/* Rota para o histórico de agendamentos */}
+            <Route path="/historico" element={<HistoricoAgendamentos />} />
           </Route>
         </Route>
       </Routes>
