@@ -229,7 +229,8 @@ function AgendamentoForm() {
   const [errors, setErrors] = useState({});
   const [selectedCityDoctor, setSelectedCityDoctor] = useState(''); // Estado para armazenar o médico da cidade selecionada
   const [isLoading, setIsLoading] = useState(true); // Estado para controlar o carregamento
-  
+  const [isEditMode, setIsEditMode] = useState(false); // Estado para controlar o modo de edição
+
   const { 
     cities, 
     availableDates,
@@ -245,6 +246,11 @@ function AgendamentoForm() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Verificar se estamos em modo de edição (se temos um ID de agendamento na URL)
+    const urlParams = new URLSearchParams(window.location.search);
+    const appointmentId = urlParams.get('id');
+    setIsEditMode(!!appointmentId);
+    
     // Função para carregar todos os dados necessários
     const loadAllData = async () => {
       setIsLoading(true);
@@ -257,6 +263,24 @@ function AgendamentoForm() {
           fetchCities(),
           fetchAvailableDates()
         ]);
+        
+        // Se estiver em modo de edição, carregar os dados do agendamento
+        if (appointmentId) {
+          try {
+            const appointmentData = await firebaseService.getAppointmentById(appointmentId);
+            if (appointmentData) {
+              setName(appointmentData.nome || '');
+              setPhone(appointmentData.telefone || '');
+              setAdditionalInfo(appointmentData.observacoes || appointmentData.informacoes || '');
+              setSelectedCity(appointmentData.cidadeId || '');
+              setSelectedDate(appointmentData.dataId || '');
+              setSelectedTime(appointmentData.horario || '');
+            }
+          } catch (error) {
+            console.error("Erro ao carregar dados do agendamento:", error);
+            toast.error("Erro ao carregar dados do agendamento.");
+          }
+        }
         
         console.log("Cidades carregadas:", cities);
         console.log("Datas disponíveis carregadas:", availableDates);
@@ -429,9 +453,14 @@ function AgendamentoForm() {
     e.preventDefault();
     const errors = {};
 
-    if (!selectedCity) errors.city = 'Selecione uma cidade';
-    if (!selectedDate) errors.date = 'Selecione uma data';
-    if (!selectedTime) errors.time = 'Selecione um horário';
+    // Se não estiver em modo de edição, validar todos os campos
+    if (!isEditMode) {
+      if (!selectedCity) errors.city = 'Selecione uma cidade';
+      if (!selectedDate) errors.date = 'Selecione uma data';
+      if (!selectedTime) errors.time = 'Selecione um horário';
+    }
+    
+    // Sempre validar nome e telefone
     if (!name.trim()) errors.name = 'Digite seu nome';
     
     // Validação de telefone
@@ -451,39 +480,59 @@ function AgendamentoForm() {
     }
 
     try {
-      console.log('Tentando agendar consulta com os seguintes dados:');
-      console.log('Cidades disponíveis:', cities);
-      console.log('Datas disponíveis:', availableDates);
-      console.log('ID da cidade selecionada:', selectedCity);
-      console.log('ID da data selecionada:', selectedDate);
+      // Obter o ID do agendamento da URL, se estiver em modo de edição
+      const urlParams = new URLSearchParams(window.location.search);
+      const appointmentId = urlParams.get('id');
       
-      // Buscar cidade e data diretamente do Firestore usando os IDs
-      const cityDoc = await firebaseService.getCityById(selectedCity);
-      const dateDoc = await firebaseService.getAvailableDateById(selectedDate);
-      
-      console.log('Documento da cidade:', cityDoc);
-      console.log('Documento da data:', dateDoc);
-      
-      if (!cityDoc || !dateDoc) {
-        throw new Error('Cidade ou data não encontrada');
+      if (isEditMode && appointmentId) {
+        // Se estiver em modo de edição, apenas atualizar nome, telefone e informações adicionais
+        const appointmentData = {
+          nome: name,
+          telefone: phone,
+          observacoes: additionalInfo || '',
+          atualizadoEm: new Date().toISOString()
+        };
+        
+        console.log('Atualizando agendamento:', appointmentId, appointmentData);
+        await firebaseService.updateAppointment(appointmentId, appointmentData);
+        toast.success('Agendamento atualizado com sucesso!');
+      } else {
+        // Se for um novo agendamento
+        console.log('Tentando agendar consulta com os seguintes dados:');
+        console.log('Cidades disponíveis:', cities);
+        console.log('Datas disponíveis:', availableDates);
+        console.log('ID da cidade selecionada:', selectedCity);
+        console.log('ID da data selecionada:', selectedDate);
+        
+        // Buscar cidade e data diretamente do Firestore usando os IDs
+        const cityDoc = await firebaseService.getCityById(selectedCity);
+        const dateDoc = await firebaseService.getAvailableDateById(selectedDate);
+        
+        console.log('Documento da cidade:', cityDoc);
+        console.log('Documento da data:', dateDoc);
+        
+        if (!cityDoc || !dateDoc) {
+          throw new Error('Cidade ou data não encontrada');
+        }
+        
+        const appointmentData = {
+          cidade: cityDoc.name || cityDoc.nome,
+          cidadeId: selectedCity,
+          data: dateDoc.data,
+          dataId: selectedDate,
+          horario: selectedTime,
+          nome: name,
+          telefone: phone,
+          informacoes: additionalInfo || '',
+          status: 'pendente',
+          criadoEm: new Date().toISOString()
+        };
+        
+        console.log('Dados do agendamento:', appointmentData);
+        
+        await createAppointment(appointmentData);
+        toast.success('Consulta agendada com sucesso! Aguarde a confirmação via WhatsApp.');
       }
-      
-      const appointmentData = {
-        cidade: cityDoc.name || cityDoc.nome,
-        cidadeId: selectedCity,
-        data: dateDoc.data,
-        dataId: selectedDate,
-        horario: selectedTime,
-        nome: name,
-        telefone: phone,
-        informacoes: additionalInfo || '',
-        status: 'pendente',
-        criadoEm: new Date().toISOString()
-      };
-      
-      console.log('Dados do agendamento:', appointmentData);
-      
-      await createAppointment(appointmentData);
       
       // Notificar sobre o novo agendamento para atualizar contadores em outros componentes
       notifyNewAppointment();
@@ -565,14 +614,27 @@ function AgendamentoForm() {
           </div>
         ) : (
           <Form onSubmit={handleSubmit}>
-            <Select 
+            <Select
               value={selectedCity}
               onChange={(e) => {
                 setSelectedCity(e.target.value);
+                // Limpar data e horário quando mudar a cidade
                 setSelectedDate('');
                 setSelectedTime('');
+                setAvailableTimes([]);
+                
+                // Atualizar o nome da cidade selecionada
+                if (e.target.value) {
+                  const city = cities.find(c => c.id === e.target.value);
+                  if (city) {
+                    setSelectedCityName(city.name || city.nome);
+                  }
+                } else {
+                  setSelectedCityName('');
+                }
               }}
               error={errors.city}
+              disabled={isEditMode} // Desabilitar se estiver em modo de edição
             >
               <option value="">Selecione uma cidade</option>
               {cities.map(city => (
@@ -662,7 +724,7 @@ function AgendamentoForm() {
               value={selectedTime}
               onChange={(e) => setSelectedTime(e.target.value)}
               error={errors.time}
-              disabled={!selectedCity || !selectedDate || availableTimes.length === 0}
+              disabled={!selectedCity || !selectedDate || availableTimes.length === 0 || isEditMode} // Desabilitar se estiver em modo de edição
             >
               <option value="">Selecione um horário</option>
               {availableTimes.map(time => (

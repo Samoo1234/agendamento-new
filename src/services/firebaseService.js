@@ -282,35 +282,88 @@ export const getAppointments = async () => {
 // Função para buscar apenas agendamentos ativos (data atual e futura)
 export const getActiveAppointments = async () => {
   try {
-    // Buscar todos os agendamentos
-    const querySnapshot = await getDocs(collection(db, 'agendamentos'));
-    const allAppointments = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...sanitizeFirestoreData(doc.data())
-    }));
+    // Obter a data atual no formato brasileiro (DD/MM/YYYY)
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    const currentDate = `${day}/${month}/${year}`;
     
-    // Obter a data atual
-    const currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0); // Zerar horas para comparar apenas datas
+    console.log('Data atual:', currentDate);
+    
+    // Converter a data atual para um objeto Date para comparação
+    const [currentDay, currentMonth, currentYear] = currentDate.split('/').map(Number);
+    const currentDateObj = new Date(currentYear, currentMonth - 1, currentDay);
+    
+    // Buscar todos os agendamentos
+    const appointmentsRef = collection(db, 'agendamentos');
+    const querySnapshot = await getDocs(appointmentsRef);
     
     // Filtrar apenas agendamentos ativos (data atual ou futura)
-    const activeAppointments = allAppointments.filter(app => {
-      if (!app.data) return false;
+    const appointments = [];
+    
+    querySnapshot.forEach(doc => {
+      const data = sanitizeFirestoreData(doc.data());
+      const appointment = { id: doc.id, ...data };
       
-      // Converter a string de data (DD/MM/YYYY) para objeto Date
-      const [day, month, year] = app.data.split('/').map(Number);
-      const appDate = new Date(year, month - 1, day);
-      appDate.setHours(0, 0, 0, 0);
-      
-      // Verificar se a data é atual ou futura
-      return appDate >= currentDate;
+      // Converter a data do agendamento para um objeto Date
+      if (appointment.data) {
+        const [appDay, appMonth, appYear] = appointment.data.split('/').map(Number);
+        const appDateObj = new Date(appYear, appMonth - 1, appDay);
+        
+        // Incluir apenas agendamentos da data atual ou futura
+        if (appDateObj >= currentDateObj) {
+          appointments.push(appointment);
+        }
+      }
     });
     
-    console.log(`Total de agendamentos ativos encontrados: ${activeAppointments.length}`);
-    return activeAppointments;
+    console.log(`Total de agendamentos ativos encontrados: ${appointments.length}`);
+    
+    return appointments;
   } catch (error) {
     console.error('Erro ao buscar agendamentos ativos:', error);
-    return [];
+    throw error;
+  }
+};
+
+// Função para buscar um agendamento específico pelo ID
+export const getAppointmentById = async (appointmentId) => {
+  try {
+    const appointmentRef = doc(db, 'agendamentos', appointmentId);
+    const appointmentDoc = await getDoc(appointmentRef);
+    
+    if (!appointmentDoc.exists()) {
+      throw new Error('Agendamento não encontrado');
+    }
+    
+    const appointmentData = sanitizeFirestoreData(appointmentDoc.data());
+    return { id: appointmentDoc.id, ...appointmentData };
+  } catch (error) {
+    console.error('Erro ao buscar agendamento por ID:', error);
+    throw error;
+  }
+};
+
+// Função para atualizar um agendamento existente
+export const updateAppointment = async (appointmentId, updatedData) => {
+  try {
+    const appointmentRef = doc(db, 'agendamentos', appointmentId);
+    
+    // Verificar se o agendamento existe
+    const appointmentDoc = await getDoc(appointmentRef);
+    if (!appointmentDoc.exists()) {
+      throw new Error('Agendamento não encontrado');
+    }
+    
+    // Atualizar apenas os campos permitidos (nome, telefone, observações)
+    // Preservar os campos originais de cidade, data e horário
+    await updateDoc(appointmentRef, updatedData);
+    
+    return { id: appointmentId, ...sanitizeFirestoreData(updatedData) };
+  } catch (error) {
+    console.error('Erro ao atualizar agendamento:', error);
+    throw error;
   }
 };
 
@@ -369,11 +422,7 @@ export const addAppointment = async (appointmentData) => {
   return { id: docRef.id, ...sanitizeFirestoreData(appointmentData) };
 };
 
-export const updateAppointment = async (id, appointmentData) => {
-  const appointmentRef = doc(db, 'agendamentos', id);
-  await updateDoc(appointmentRef, appointmentData);
-  return { id, ...sanitizeFirestoreData(appointmentData) };
-};
+// Função já definida acima
 
 export const deleteAppointment = async (id) => {
   const appointmentRef = doc(db, 'agendamentos', id);

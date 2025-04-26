@@ -4,7 +4,7 @@ import styled from 'styled-components';
 // import { format } from 'date-fns';
 // import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from './config/firebase';
 import * as firebaseService from './services/firebaseService';
@@ -101,6 +101,7 @@ const Financeiro = () => {
   });
   const [mapaCidadeDatas, setMapaCidadeDatas] = useState(new Map());
   const [pagamentosDivididos, setPagamentosDivididos] = useState({});
+  const [tiposAtendimento, setTiposAtendimento] = useState({});
 
   // Carregar cidades e datas disponíveis
   useEffect(() => {
@@ -611,8 +612,12 @@ const Financeiro = () => {
       return;
     }
     
-    // Criar novo documento PDF
-    const doc = new jsPDF();
+    // Criar novo documento PDF com orientação paisagem
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
     
     // Adicionar título
     const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
@@ -625,10 +630,6 @@ const Financeiro = () => {
     doc.text(`Relatório Financeiro - ${nomeCidade}`, 14, 20);
     doc.setFontSize(14);
     doc.text(`Data: ${dataFormatada} (${diaSemana})`, 14, 30);
-    
-    // Adicionar tabela de registros
-    const tableColumn = ["Cliente", "R$", "Tipo", "Forma de Pagamento", "Situação", "Observações"];
-    const tableRows = [];
     
     // Função para converter horário para minutos (definida localmente para uso no PDF)
     const getMinutosLocal = (horario) => {
@@ -644,444 +645,404 @@ const Financeiro = () => {
       const agendamentoB = agendamentos.find(ag => ag.id === b.agendamentoId);
       
       // Converter horário para minutos
-      const minutosA = agendamentoA?.horario ? getMinutosLocal(agendamentoA.horario) : 0;
-      const minutosB = agendamentoB?.horario ? getMinutosLocal(agendamentoB.horario) : 0;
+      const horaA = agendamentoA ? getMinutosLocal(agendamentoA.horario) : 0;
+      const horaB = agendamentoB ? getMinutosLocal(agendamentoB.horario) : 0;
       
-      return minutosA - minutosB;
+      return horaA - horaB;
     });
     
-    // Processar registros ordenados
-    registrosOrdenados.forEach(registro => {
-      // Formatar as formas de pagamento para exibição no PDF
-      let formasPagamentoTexto = '';
-      
-      if (registro.formasPagamento && Array.isArray(registro.formasPagamento)) {
-        formasPagamentoTexto = registro.formasPagamento
-          .map(p => `${p.formaPagamento}: R$ ${p.valor}`)
-          .join('\n');
-      } else {
-        formasPagamentoTexto = registro.formaPagamento;
-      }
-      
-      const registroData = [
-        registro.cliente,
-        registro.valor,
-        registro.tipo,
-        formasPagamentoTexto,
-        registro.situacao,
-        registro.observacoes
-      ];
-      tableRows.push(registroData);
+    // Configurar tabela manual
+    let startY = 40;
+    const lineHeight = 12; // Altura da linha
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth(); // Agora maior por causa da orientação paisagem
+    // Ajustando as larguras das colunas com mais espaço disponível na orientação paisagem
+    const colWidths = [60, 30, 35, 60, 35, 35, 50]; // Larguras das colunas aumentadas
+    
+    // Calcular a largura total e ajustar proporcionalmente
+    const totalWidth = colWidths.reduce((a, b) => a + b, 0);
+    const scaleFactor = (pageWidth - 2 * margin) / totalWidth;
+    const scaledWidths = colWidths.map(w => w * scaleFactor);
+    
+    // Cabeçalho da tabela
+    doc.setFillColor(220, 220, 220); // Cinza claro
+    doc.setDrawColor(0, 0, 0); // Preto
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    
+    // Desenhar cabeçalho
+    let currentX = margin;
+    const headers = ["Cliente", "R$", "Tipo", "Forma de Pagamento", "Situação", "Status", "Observações"];
+    
+    // Desenhar retângulo de fundo para o cabeçalho
+    doc.rect(margin, startY, pageWidth - 2 * margin, lineHeight, 'FD');
+    
+    // Adicionar textos do cabeçalho
+    headers.forEach((header, i) => {
+      doc.text(header, currentX + 2, startY + lineHeight - 2); // +2 para padding, -2 para alinhar texto
+      currentX += scaledWidths[i];
     });
+    
+    startY += lineHeight;
+    
+    // Adicionar linhas de dados
+    doc.setFontSize(8);
+    doc.setDrawColor(200, 200, 200); // Cinza mais claro para as linhas
+    
+    // Processar registros ordenados para o PDF
+    registrosOrdenados.forEach((registro, rowIndex) => {
+      const formaPagamentoDisplay = registro.formasPagamento && Array.isArray(registro.formasPagamento) ?
+        registro.formasPagamento.map(p => `${p.formaPagamento}: R$ ${formatarValorMoeda(p.valor)}`).join(', ') :
+        registro.formaPagamento;
       
-      // Usar autoTable importado diretamente
-      autoTable(doc, {
-        startY: 40,
-        head: [tableColumn],
-        body: tableRows,
-        theme: 'striped',
-        headStyles: { fillColor: [75, 75, 75] },
-        styles: { overflow: 'linebreak' },
-        columnStyles: {
-          3: { cellWidth: 40 } // Aumentar a largura da coluna de formas de pagamento
+      const rowData = [
+        registro.cliente || '',
+        `R$ ${formatarValorMoeda(registro.valor)}`,
+        registro.tipo || '',
+        formaPagamentoDisplay || '',
+        registro.situacao || '',
+        registro.status || 'Consultas',
+        registro.observacoes || ''
+      ];
+      
+      // Verificar se precisamos de uma nova página
+      if (startY > doc.internal.pageSize.getHeight() - 20) {
+        doc.addPage();
+        startY = 20;
+      }
+      
+      // Desenhar retângulo de fundo alternado para as linhas
+      if (rowIndex % 2 === 0) {
+        doc.setFillColor(245, 245, 245); // Cinza bem claro
+        doc.rect(margin, startY, pageWidth - 2 * margin, lineHeight, 'FD');
+      } else {
+        doc.setFillColor(255, 255, 255); // Branco
+        doc.rect(margin, startY, pageWidth - 2 * margin, lineHeight, 'FD');
+      }
+      
+      // Adicionar textos da linha
+      currentX = margin;
+      rowData.forEach((cell, i) => {
+        // Limitar o texto para caber na coluna e evitar sobreposição
+        let cellText = cell;
+        const maxLength = i === 0 ? 25 : // Cliente
+                        i === 1 ? 10 : // R$
+                        i === 2 ? 12 : // Tipo
+                        i === 3 ? 18 : // Forma de Pagamento
+                        i === 4 ? 12 : // Situação
+                        i === 5 ? 12 : // Status
+                        25;            // Observações
+        
+        if (cellText.length > maxLength) {
+          cellText = cellText.substring(0, maxLength - 3) + '...';
         }
+        
+        // Adicionar padding para evitar sobreposição com bordas
+        doc.text(cellText, currentX + 3, startY + lineHeight - 3);
+        currentX += scaledWidths[i];
       });
       
-      // Adicionar resumo
-      let finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 40;
-      
-      doc.setFontSize(14);
-      doc.text('Resumo', 14, finalY + 10);
-      
-      // Tabela de resumo por tipo
-      const resumoColumns = ["Tipo", "Quantidade", "Total (R$)"];
-      const resumoRows = [
-        ["Particular", estatisticas.countParticular.toString(), formatarValorMoeda(estatisticas.totalParticular)],
-        ["Convênio", estatisticas.countConvenio.toString(), formatarValorMoeda(estatisticas.totalConvenio)],
-        ["Campanha", estatisticas.countCampanha.toString(), formatarValorMoeda(estatisticas.totalCampanha)],
-        ["Total", estatisticas.countTotal.toString(), formatarValorMoeda(estatisticas.totalGeral)]
-      ];
-      
-      autoTable(doc, {
-        startY: finalY + 15,
-        head: [resumoColumns],
-        body: resumoRows,
-        theme: 'striped',
-        headStyles: { fillColor: [75, 75, 75] }
-      });
-      
-      // Adicionar resumo por forma de pagamento
-      finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : finalY + 15;
-      
-      doc.setFontSize(14);
-      doc.text('Resumo por Forma de Pagamento', 14, finalY + 10);
-      
-      // Tabela de resumo por forma de pagamento
-      const resumoPagamentoColumns = ["Forma de Pagamento", "Quantidade", "Total (R$)"];
-      const resumoPagamentoRows = [
-        ["Dinheiro", estatisticas.countDinheiro.toString(), formatarValorMoeda(estatisticas.totalDinheiro)],
-        ["Cartão", estatisticas.countCartao.toString(), formatarValorMoeda(estatisticas.totalCartao)],
-        ["PIX/Pic pay", estatisticas.countPix.toString(), formatarValorMoeda(estatisticas.totalPix)]
-      ];
-      
-      autoTable(doc, {
-        startY: finalY + 15,
-        head: [resumoPagamentoColumns],
-        body: resumoPagamentoRows,
-        theme: 'striped',
-        headStyles: { fillColor: [75, 75, 75] }
-      });
-      
-      // Salvar o PDF
-      doc.save(`relatorio_financeiro_${nomeCidade}_${dataFormatada.replace(/\//g, '-')}.pdf`);
-      
-    } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
-      alert(`Erro ao gerar PDF: ${error.message}`);
-    }
-  };
+      startY += lineHeight;
+    });
+    
+    // Salvar PDF
+    doc.save(`Relatorio_Financeiro_${nomeCidade}_${dataFormatada}.pdf`);
+    console.log('PDF gerado com sucesso!');
+    
+  } catch (error) {
+    console.error('Erro ao gerar PDF:', error);
+    alert(`Erro ao gerar PDF: ${error.message}`);
+  }
+};
 
-  const salvarNovoRegistro = async (registro) => {
-    try {
-      console.log('Tentando salvar novo registro:', registro);
-      
-      // Verificar se todos os campos obrigatórios estão preenchidos
-      if (!registro.cliente || !registro.valor || !registro.tipo || !registro.situacao) {
-        console.error('Campos obrigatórios não preenchidos');
-        alert('Por favor, preencha todos os campos obrigatórios (Cliente, R$, Tipo e Situação)');
-        return;
-      }
-      
-      // Verificar pagamentos divididos
-      const pagamentos = pagamentosDivididos[registro.id] || [];
-      if (pagamentos.length === 0 || !pagamentos.every(p => p.formaPagamento && p.valor)) {
-        alert('Por favor, preencha todas as formas de pagamento corretamente');
-        return;
-      }
-      
-      // Verificar se o total dos pagamentos divididos é igual ao valor total
-      const totalPagamentos = calcularTotalPagamentosDivididos(registro.id);
-      const valorTotal = parseFloat(registro.valor.replace(',', '.'));
-      
-      if (Math.abs(totalPagamentos - valorTotal) > 0.01) { // Tolerância para erros de arredondamento
-        alert(`O total das formas de pagamento (R$ ${totalPagamentos.toFixed(2)}) deve ser igual ao valor total (R$ ${valorTotal.toFixed(2)})`);
-        return;
-      }
-      
-      // Obter a data formatada corretamente
-      const dataObj = datas.find(d => d.id === dataSelecionada);
-      if (!dataObj || !dataObj.data) {
-        throw new Error('Data selecionada não encontrada');
-      }
-      
-      // Obter o nome da cidade a partir do ID
-      const cidadeObj = cities.find(city => city.id === cidadeSelecionada);
-      if (!cidadeObj) {
-        throw new Error('Cidade selecionada não encontrada');
-      }
-      const nomeCidade = cidadeObj.name;
-      
-      // Formatar as formas de pagamento para salvar no Firestore
-      const formasPagamento = pagamentos.map(p => ({
-        formaPagamento: p.formaPagamento,
-        valor: p.valor
+// Função para salvar edição de registro
+const salvarEdicaoRegistro = async (registro) => {
+  try {
+    // Verificar se todos os campos obrigatórios estão preenchidos
+    if (!registro.cliente || !registro.valor || !registro.tipo || !registro.situacao) {
+      alert('Por favor, preencha todos os campos obrigatórios: Cliente, Valor, Tipo e Situação.');
+      return;
+    }
+    
+    // Obter os pagamentos divididos para este registro
+    const pagamentosRegistro = pagamentosDivididos[registro.id] || [];
+    
+    // Verificar se há pelo menos uma forma de pagamento
+    if (pagamentosRegistro.length === 0 || !pagamentosRegistro[0].formaPagamento) {
+      alert('Por favor, adicione pelo menos uma forma de pagamento.');
+      return;
+    }
+    
+    // Verificar se o total de pagamentos bate com o valor do registro
+    const totalPagamentos = calcularTotalPagamentosDivididos(registro.id);
+    const valorRegistro = parseFloat(registro.valor.replace(',', '.'));
+    
+    if (Math.abs(totalPagamentos - valorRegistro) > 0.01) {
+      alert(`O total de pagamentos (R$ ${totalPagamentos.toFixed(2)}) não corresponde ao valor do registro (R$ ${valorRegistro.toFixed(2)}).`);
+      return;
+    }
+    
+    // Obter o nome da cidade
+    const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
+    const nomeCidade = cidadeSelecionadaObj ? cidadeSelecionadaObj.name : 'Desconhecida';
+    
+    // Obter o tipo de atendimento selecionado
+    const tipoAtendimento = tiposAtendimento[registro.id] || 'Consultas';
+    
+    // Preparar as formas de pagamento
+    const formasPagamento = pagamentosRegistro.map(p => ({
+      formaPagamento: p.formaPagamento,
+      valor: p.valor
+    }));
+    
+    // Criar objeto para atualizar no Firestore
+    const registroAtualizado = {
+      cliente: registro.cliente,
+      valor: registro.valor,
+      tipo: registro.tipo,
+      formaPagamento: pagamentosRegistro[0].formaPagamento, // Manter compatibilidade com registros antigos
+      formasPagamento: formasPagamento, // Novo campo para pagamentos divididos
+      situacao: registro.situacao,
+      status: tipoAtendimento, // Usar o tipo de atendimento selecionado
+      observacoes: registro.observacoes || '',
+      cidade: nomeCidade, // Usar o nome da cidade em vez do ID
+      cidadeId: cidadeSelecionada, // Manter o ID da cidade para referência
+      data: registro.data,
+      dataId: registro.dataId,
+      agendamentoId: registro.agendamentoId || null,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Atualizar no Firestore
+    const registroRef = doc(db, 'registros_financeiros', registro.id);
+    await updateDoc(registroRef, registroAtualizado);
+    
+    // Atualizar o estado do registro para sair do modo de edição
+    setRegistrosFinanceiros(prev => 
+      prev.map(r => 
+        r.id === registro.id 
+          ? { ...registroAtualizado, id: registro.id, editando: false } 
+          : r
+      )
+    );
+    
+    console.log('Registro atualizado com sucesso:', registroAtualizado);
+    alert('Registro atualizado com sucesso!');
+  } catch (error) {
+    console.error('Erro ao atualizar registro:', error);
+    alert(`Erro ao atualizar registro: ${error.message}`);
+  }
+};
+
+// Função para adicionar um novo registro em branco
+const adicionarNovoRegistro = (agendamentoId, cliente, valor, id) => {
+  try {
+    const novoId = id || `novo-${Date.now()}`;
+    const novoRegistro = {
+      id: novoId,
+      cliente: cliente || '',
+      valor: valor || '',
+      tipo: '',
+      formaPagamento: '',
+      situacao: '',
+      status: 'Consultas', // Valor padrão para o status
+      observacoes: '',
+      novo: true,
+      editando: true,
+      agendamentoId: agendamentoId,
+      cidadeId: cidadeSelecionada,
+      dataId: dataSelecionada
+    };
+
+    // Adicionar o novo registro à lista de registros
+    setRegistrosFinanceiros(prev => [...prev, novoRegistro]);
+
+    // Inicializar o tipo de atendimento para este registro
+    setTiposAtendimento(prev => ({
+      ...prev,
+      [novoId]: 'Consultas'
+    }));
+    
+    // Inicializar pagamentos divididos para este registro
+    setPagamentosDivididos(prev => ({
+      ...prev,
+      [novoId]: [{ formaPagamento: '', valor: valor || '' }]
+    }));
+    
+    console.log('Novo registro adicionado:', novoRegistro);
+  } catch (error) {
+    console.error('Erro ao adicionar novo registro:', error);
+    alert(`Erro ao adicionar novo registro: ${error.message}`);
+  }
+};
+
+// Função para salvar novo registro no Firestore
+const salvarNovoRegistro = async (registro) => {
+  try {
+    // Verificar se todos os campos obrigatórios estão preenchidos
+    if (!registro.cliente || !registro.valor || !registro.tipo || !registro.situacao) {
+      alert('Por favor, preencha todos os campos obrigatórios: Cliente, Valor, Tipo e Situação.');
+      return;
+    }
+    
+    // Obter os pagamentos divididos para este registro
+    const pagamentos = pagamentosDivididos[registro.id] || [];
+    
+    // Verificar se há pelo menos uma forma de pagamento
+    if (pagamentos.length === 0 || !pagamentos[0].formaPagamento) {
+      alert('Por favor, adicione pelo menos uma forma de pagamento.');
+      return;
+    }
+    
+    // Verificar se o total de pagamentos bate com o valor do registro
+    const totalPagamentos = calcularTotalPagamentosDivididos(registro.id);
+    const valorRegistro = parseFloat(registro.valor.replace(',', '.'));
+    
+    if (Math.abs(totalPagamentos - valorRegistro) > 0.01) {
+      alert(`O total de pagamentos (R$ ${totalPagamentos.toFixed(2)}) não corresponde ao valor do registro (R$ ${valorRegistro.toFixed(2)}).`);
+      return;
+    }
+    
+    // Obter o nome da cidade
+    const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
+    const nomeCidade = cidadeSelecionadaObj ? cidadeSelecionadaObj.name : 'Desconhecida';
+    
+    // Obter o tipo de atendimento selecionado
+    const tipoAtendimento = tiposAtendimento[registro.id] || 'Consultas';
+    
+    // Preparar as formas de pagamento
+    const formasPagamento = pagamentos.map(p => ({
+      formaPagamento: p.formaPagamento,
+      valor: p.valor
+    }));
+    
+    // Criar objeto para salvar no Firestore
+    const novoRegistro = {
+      cliente: registro.cliente,
+      valor: registro.valor,
+      tipo: registro.tipo,
+      formaPagamento: pagamentos[0].formaPagamento, // Manter compatibilidade com registros antigos
+      formasPagamento: formasPagamento, // Novo campo para pagamentos divididos
+      situacao: registro.situacao,
+      status: tipoAtendimento, // Usar o tipo de atendimento selecionado
+      observacoes: registro.observacoes || '',
+      cidade: nomeCidade, // Usar o nome da cidade em vez do ID
+      cidadeId: cidadeSelecionada, // Manter o ID da cidade para referência
+      data: dataSelecionada,
+      dataId: dataSelecionada, // ID da data selecionada
+      agendamentoId: registro.agendamentoId || null,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Salvar no Firestore
+    const registrosRef = collection(db, 'registros_financeiros');
+    await addDoc(registrosRef, novoRegistro);
+    
+    // Remover o registro temporário da lista
+    setRegistrosFinanceiros(prev => prev.filter(r => r.id !== registro.id));
+    
+    // Buscar dados atualizados
+    buscarDados();
+    
+    console.log('Novo registro salvo com sucesso:', novoRegistro);
+    alert('Registro salvo com sucesso!');
+  } catch (error) {
+    console.error('Erro ao salvar novo registro:', error);
+    alert(`Erro ao salvar registro: ${error.message}`);
+  }
+};
+
+  // Função para iniciar a edição de um registro
+  const iniciarEdicaoRegistro = (id) => {
+    // Atualizar o estado do registro para modo de edição
+    setRegistrosFinanceiros(prev => 
+      prev.map(registro => 
+        registro.id === id 
+          ? { ...registro, editando: true } 
+          : registro
+      )
+    );
+    
+    // Inicializar pagamentos divididos se não existirem
+    const registro = registrosFinanceiros.find(r => r.id === id);
+    if (registro) {
+      // Inicializar o tipo de atendimento para este registro
+      setTiposAtendimento(prev => ({
+        ...prev,
+        [id]: registro.status || 'Consultas'
       }));
       
-      // Criar objeto com os dados do registro
-      const novoRegistro = {
-        agendamentoId: registro.agendamentoId,
-        cliente: registro.cliente,
-        valor: registro.valor,
-        tipo: registro.tipo,
-        formaPagamento: pagamentos[0].formaPagamento, // Manter compatibilidade com registros antigos
-        formasPagamento: formasPagamento, // Novo campo para pagamentos divididos
-        situacao: registro.situacao,
-        observacoes: registro.observacoes || '',
-        cidade: nomeCidade, // Usar o nome da cidade em vez do ID
-        cidadeId: cidadeSelecionada, // Manter o ID da cidade para referência
-        data: dataObj.data, // Usar a data formatada em vez do ID
-        dataId: dataSelecionada, // Manter o ID da data para referência
-        timestamp: new Date().toISOString()
-      };
-      
-      console.log('Objeto de novo registro a ser salvo:', novoRegistro);
-      console.log('Salvando na coleção registros_financeiros');
-      
-      // Salvar no Firestore
-      const registrosRef = collection(db, 'registros_financeiros');
-      console.log('Referência da coleção:', registrosRef);
-      
-      const docRef = await addDoc(registrosRef, novoRegistro);
-      console.log('Registro adicionado com sucesso! ID:', docRef.id);
-      
-      alert('Registro financeiro salvo com sucesso!');
-      
-      // Atualizar a lista de registros
-      buscarDados();
-    } catch (error) {
-      console.error('Erro ao salvar novo registro:', error);
-      alert(`Erro ao salvar registro: ${error.message}`);
-    }
-  };
-
-  const testarConexaoFirebase = async () => {
-    try {
-      console.log('Testando conexão com o Firebase...');
-      
-      // Tentar criar uma coleção de teste
-      const testeRef = collection(db, 'teste_conexao');
-      const docRef = await addDoc(testeRef, {
-        teste: true,
-        timestamp: new Date().toISOString()
-      });
-      
-      console.log('Teste de conexão bem-sucedido! ID do documento:', docRef.id);
-      
-      // Verificar a estrutura dos agendamentos
-      console.log('Verificando a estrutura dos agendamentos...');
-      const agendamentosRef = collection(db, 'agendamentos');
-      const agendamentosSnapshot = await getDocs(agendamentosRef);
-      
-      console.log(`Total de ${agendamentosSnapshot.docs.length} agendamentos encontrados`);
-      
-      if (agendamentosSnapshot.docs.length > 0) {
-        // Mostrar a estrutura de alguns agendamentos
-        const amostra = agendamentosSnapshot.docs.slice(0, 3);
-        amostra.forEach((doc, index) => {
-          const dados = doc.data();
-          console.log(`Agendamento ${index + 1} (ID: ${doc.id}):`, dados);
-          console.log(`  - cidade: ${dados.cidade} (tipo: ${typeof dados.cidade})`);
-          console.log(`  - data: ${dados.data} (tipo: ${typeof dados.data})`);
-        });
-      }
-      
-      // Verificar a estrutura das datas disponíveis
-      console.log('Verificando a estrutura das datas disponíveis...');
-      const datasRef = collection(db, 'datas_disponiveis');
-      const datasSnapshot = await getDocs(datasRef);
-      
-      console.log(`Total de ${datasSnapshot.docs.length} datas disponíveis encontradas`);
-      
-      if (datasSnapshot.docs.length > 0) {
-        // Mostrar a estrutura de algumas datas
-        const amostra = datasSnapshot.docs.slice(0, 3);
-        amostra.forEach((doc, index) => {
-          const dados = doc.data();
-          console.log(`Data ${index + 1} (ID: ${doc.id}):`, dados);
-          console.log(`  - cidade: ${dados.cidade} (tipo: ${typeof dados.cidade})`);
-          console.log(`  - data: ${dados.data} (tipo: ${typeof dados.data})`);
-        });
-      }
-      
-      alert('Conexão com o Firebase está funcionando! Documento de teste criado com ID: ' + docRef.id);
-      
-      // Excluir o documento de teste
-      await deleteDoc(doc(db, 'teste_conexao', docRef.id));
-      console.log('Documento de teste excluído');
-    } catch (error) {
-      console.error('Erro ao testar conexão com o Firebase:', error);
-      alert(`Erro ao testar conexão: ${error.message}`);
-    }
-  };
-
-  const iniciarEdicaoRegistro = (id) => {
-    const registroIndex = registrosFinanceiros.findIndex(registro => registro.id === id);
-    if (registroIndex >= 0) {
-      const registro = registrosFinanceiros[registroIndex];
-      const novosRegistros = [...registrosFinanceiros];
-      novosRegistros[registroIndex] = { ...novosRegistros[registroIndex], editando: true };
-      setRegistrosFinanceiros(novosRegistros);
-      
-      // Inicializar pagamentos divididos se ainda não existirem
+      // Inicializar pagamentos divididos
       if (!pagamentosDivididos[id]) {
         if (registro.formasPagamento && Array.isArray(registro.formasPagamento)) {
+          // Usar formas de pagamento existentes
           setPagamentosDivididos(prev => ({
             ...prev,
             [id]: registro.formasPagamento
           }));
         } else {
-          // Compatibilidade com registros antigos
+          // Criar forma de pagamento padrão
           setPagamentosDivididos(prev => ({
             ...prev,
-            [id]: [{
-              formaPagamento: registro.formaPagamento || '',
-              valor: registro.valor || ''
-            }]
+            [id]: [{ formaPagamento: registro.formaPagamento || '', valor: registro.valor || '' }]
           }));
         }
       }
     }
+    
+    console.log(`Iniciando edição do registro ${id}`);
   };
-
+  
+  // Função para cancelar a edição de um registro
   const cancelarEdicaoRegistro = (id) => {
-    const registroIndex = registrosFinanceiros.findIndex(registro => registro.id === id);
-    if (registroIndex >= 0) {
-      const novosRegistros = [...registrosFinanceiros];
-      novosRegistros[registroIndex] = { ...novosRegistros[registroIndex], editando: false };
-      setRegistrosFinanceiros(novosRegistros);
-      
-      // Limpar pagamentos divididos temporários
-      if (pagamentosDivididos[id]) {
-        const novosPagamentos = { ...pagamentosDivididos };
-        delete novosPagamentos[id];
-        setPagamentosDivididos(novosPagamentos);
-      }
-    }
+    // Atualizar o estado do registro para sair do modo de edição
+    setRegistrosFinanceiros(prev => 
+      prev.map(registro => 
+        registro.id === id 
+          ? { ...registro, editando: false } 
+          : registro
+      )
+    );
+    
+    console.log(`Edição do registro ${id} cancelada`);
   };
-
-  const salvarEdicaoRegistro = async (registro) => {
-    try {
-      console.log('Salvando edição do registro:', registro);
-      
-      // Verificar campos obrigatórios
-      if (!registro.cliente || !registro.valor || !registro.tipo || !registro.situacao) {
-        console.error('Campos obrigatórios não preenchidos');
-        alert('Por favor, preencha todos os campos obrigatórios (Cliente, R$, Tipo e Situação)');
-        return;
-      }
-      
-      // Verificar pagamentos divididos
-      const pagamentos = pagamentosDivididos[registro.id] || [];
-      if (pagamentos.length === 0 || !pagamentos.every(p => p.formaPagamento && p.valor)) {
-        alert('Por favor, preencha todas as formas de pagamento corretamente');
-        return;
-      }
-      
-      // Verificar se o total dos pagamentos divididos é igual ao valor total
-      const totalPagamentos = calcularTotalPagamentosDivididos(registro.id);
-      const valorTotal = parseFloat(registro.valor.replace(',', '.'));
-      
-      if (Math.abs(totalPagamentos - valorTotal) > 0.01) { // Tolerância para erros de arredondamento
-        alert(`O total das formas de pagamento (R$ ${totalPagamentos.toFixed(2)}) deve ser igual ao valor total (R$ ${valorTotal.toFixed(2)})`);
-        return;
-      }
-      
-      // Obter a data formatada corretamente
-      const dataObj = datas.find(d => d.id === registro.dataId || d.id === dataSelecionada);
-      if (!dataObj || !dataObj.data) {
-        throw new Error('Data selecionada não encontrada');
-      }
-      
-      // Obter o nome da cidade a partir do ID
-      const cidadeId = registro.cidadeId || cidadeSelecionada;
-      const cidadeObj = cities.find(city => city.id === cidadeId);
-      if (!cidadeObj) {
-        throw new Error('Cidade selecionada não encontrada');
-      }
-      const nomeCidade = cidadeObj.name;
-      
-      // Formatar as formas de pagamento para salvar no Firestore
-      const formasPagamento = pagamentos.map(p => ({
-        formaPagamento: p.formaPagamento,
-        valor: p.valor
-      }));
-      
-      // Criar objeto com os dados atualizados
-      const registroAtualizado = {
-        agendamentoId: registro.agendamentoId,
-        cliente: registro.cliente,
-        valor: registro.valor,
-        tipo: registro.tipo,
-        formaPagamento: pagamentos[0].formaPagamento, // Manter compatibilidade com registros antigos
-        formasPagamento: formasPagamento, // Novo campo para pagamentos divididos
-        situacao: registro.situacao,
-        observacoes: registro.observacoes || '',
-        cidade: nomeCidade, // Usar o nome da cidade em vez do ID
-        cidadeId: cidadeId, // Manter o ID da cidade para referência
-        data: dataObj.data, // Usar a data formatada em vez do ID
-        dataId: registro.dataId || dataSelecionada, // Manter o ID da data para referência
-        timestamp: new Date().toISOString()
-      };
-      
-      // Atualizar no Firestore
-      const registroRef = doc(db, 'registros_financeiros', registro.id);
-      await updateDoc(registroRef, registroAtualizado);
-      
-      console.log('Registro atualizado com sucesso!');
-      alert('Registro financeiro atualizado com sucesso!');
-      
-      // Atualizar a lista de registros
-      buscarDados();
-    } catch (error) {
-      console.error('Erro ao atualizar registro:', error);
-      alert(`Erro ao atualizar registro: ${error.message}`);
-    }
-  };
-
+  
+  // Função para excluir um registro financeiro
   const excluirRegistro = async (id) => {
     try {
-      if (window.confirm('Tem certeza que deseja excluir este registro?')) {
-        console.log('Excluindo registro:', id);
-        
-        // Verificar se é um registro novo (que ainda não foi salvo no Firestore)
-        if (id.startsWith('novo_')) {
-          // Apenas remover da lista local
-          const novosRegistros = registrosFinanceiros.filter(registro => registro.id !== id);
-          setRegistrosFinanceiros(novosRegistros);
-          return;
-        }
-        
-        // Excluir do Firestore
-        const registroRef = doc(db, 'registros_financeiros', id);
-        await deleteDoc(registroRef);
-        
-        console.log('Registro excluído com sucesso!');
-        alert('Registro financeiro excluído com sucesso!');
-        
-        // Atualizar a lista de registros
-        buscarDados();
+      // Confirmar com o usuário antes de excluir
+      if (!window.confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) {
+        return; // Usuário cancelou a exclusão
       }
+      
+      // Excluir o registro do Firestore
+      const registroRef = doc(db, 'registros_financeiros', id);
+      await deleteDoc(registroRef);
+      
+      // Remover o registro do estado local
+      setRegistrosFinanceiros(prev => prev.filter(registro => registro.id !== id));
+      
+      // Limpar os pagamentos divididos e tipo de atendimento associados a este registro
+      setPagamentosDivididos(prev => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
+      });
+      
+      setTiposAtendimento(prev => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
+      });
+      
+      console.log(`Registro ${id} excluído com sucesso`);
+      alert('Registro excluído com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir registro:', error);
       alert(`Erro ao excluir registro: ${error.message}`);
     }
   };
-
-  const adicionarNovoRegistro = (agendamentoId, cliente, valor, id) => {
-    try {
-      console.log('Adicionando novo registro');
-      
-      // Verificar se temos cidade e data selecionadas
-      if (!cidadeSelecionada || !dataSelecionada) {
-        alert('Por favor, selecione uma cidade e uma data antes de adicionar um registro.');
-        return;
-      }
-      
-      // Gerar ID temporário para o novo registro
-      const novoId = id || `novo_${Date.now()}`;
-      
-      // Criar novo registro vazio
-      const novoRegistro = {
-        id: novoId,
-        agendamentoId: agendamentoId,
-        cliente: cliente || '',
-        valor: valor || '',
-        tipo: '',
-        formaPagamento: '',
-        situacao: '',
-        observacoes: '',
-        novo: true,
-        editando: true,
-        cidadeId: cidadeSelecionada,
-        dataId: dataSelecionada
-      };
-      
-      // Adicionar à lista de registros
-      setRegistrosFinanceiros(prev => [...prev, novoRegistro]);
-      
-      // Inicializar pagamentos divididos para este registro
-      setPagamentosDivididos(prev => ({
-        ...prev,
-        [novoId]: [{ formaPagamento: '', valor: valor || '' }]
-      }));
-      
-      console.log('Novo registro adicionado:', novoRegistro);
-    } catch (error) {
-      console.error('Erro ao adicionar novo registro:', error);
-      alert(`Erro ao adicionar novo registro: ${error.message}`);
-    }
-  };
-
+  
   const handlePagamentoDividido = (registroId, index, campo, valor) => {
     setPagamentosDivididos(prev => {
       const pagamentosRegistro = [...(prev[registroId] || [])];
@@ -1194,6 +1155,15 @@ const Financeiro = () => {
     }
   };
 
+  // Função para atualizar o tipo de atendimento
+  const handleTipoAtendimentoChange = (registroId, tipo) => {
+    console.log(`Atualizando tipo de atendimento: registro=${registroId}, tipo=${tipo}`);
+    setTiposAtendimento(prev => ({
+      ...prev,
+      [registroId]: tipo
+    }));
+  };
+
   // Função para formatar valor como moeda (R$ 0,00)
   const formatarValorMoeda = (valor) => {
     if (!valor) return '';
@@ -1295,6 +1265,7 @@ const Financeiro = () => {
                     <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Tipo</th>
                     <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Forma de Pagamento</th>
                     <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Situação</th>
+                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Status</th>
                     <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Observações</th>
                     <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Ações</th>
                   </tr>
@@ -1302,7 +1273,7 @@ const Financeiro = () => {
                 <tbody>
                   {registrosFinanceiros.length === 0 ? (
                     <tr>
-                      <td colSpan="7" style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>
+                      <td colSpan="8" style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>
                         Nenhum registro encontrado para esta data e cidade.
                       </td>
                     </tr>
@@ -1461,6 +1432,17 @@ const Financeiro = () => {
                             ) : (
                               registro.situacao
                             )}
+                          </td>
+                          <td style={{ border: '1px solid #ddd', padding: '8px' }}>
+                            <select
+                              value={tiposAtendimento[registro.id] || registro.status || 'Consultas'}
+                              onChange={(e) => handleTipoAtendimentoChange(registro.id, e.target.value)}
+                              style={{ width: '100%', padding: '4px' }}
+                            >
+                              <option value="Consultas">Consultas</option>
+                              <option value="Exames">Exames</option>
+                              <option value="Revisão">Revisão</option>
+                            </select>
                           </td>
                           <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                             {registro.editando || registro.novo ? (

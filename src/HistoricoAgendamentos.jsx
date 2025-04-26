@@ -242,16 +242,35 @@ const HistoricoAgendamentos = () => {
       const result = await getHistoricalAppointments(filters);
       console.log('Resultado da busca:', result);
       
-      setAppointments(result);
-      setFilteredAppointments(result);
-      
-      // Calcular paginação
-      updatePagination(result);
-      
-      if (result.length > 0) {
-        toast.success(`${result.length} agendamentos encontrados`);
+      if (result && Array.isArray(result)) {
+        // Transformar os dados para garantir consistência
+        const formattedAppointments = result.map(appointment => ({
+          id: appointment.id,
+          nome: appointment.nome || appointment.paciente || '',
+          telefone: appointment.telefone || '',
+          cidade: appointment.cidade || '',
+          data: appointment.data || '',
+          horario: appointment.horario || '',
+          status: appointment.status || 'pendente',
+          informacoes: appointment.informacoes || '',
+          observacoes: appointment.observacoes || ''
+        }));
+        
+        // Inicializar os tipos de agendamento (padrão: 'Consultas')
+        const initialTipos = {};
+        formattedAppointments.forEach(appointment => {
+          initialTipos[appointment.id] = appointment.tipo || 'Consultas';
+        });
+        setTiposAgendamento(initialTipos);
+        
+        setAppointments(formattedAppointments);
+        setFilteredAppointments(formattedAppointments);
+        updatePagination(formattedAppointments);
       } else {
-        toast.success('Nenhum agendamento encontrado para os filtros selecionados');
+        console.error('Formato de dados inválido:', result);
+        setAppointments([]);
+        setFilteredAppointments([]);
+        updatePagination([]);
       }
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
