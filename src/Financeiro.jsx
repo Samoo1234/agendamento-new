@@ -1437,7 +1437,7 @@ const salvarNovoRegistro = async (registro) => {
                             <select
                               value={tiposAtendimento[registro.id] || registro.status || 'Consultas'}
                               onChange={(e) => handleTipoAtendimentoChange(registro.id, e.target.value)}
-                              style={{ width: '100%', padding: '4px' }}
+                              style={{ width: '100%' }}
                             >
                               <option value="Consultas">Consultas</option>
                               <option value="Exames">Exames</option>
