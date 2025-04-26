@@ -125,6 +125,7 @@ const GerenciarClientes = () => {
   const [dataFiltro, setDataFiltro] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState(null);
   const { cities, appointmentUpdateCounter } = useStore();
 
   const fetchAgendamentos = async () => {
@@ -242,6 +243,12 @@ const GerenciarClientes = () => {
     const minutosB = getMinutos(b.horario);
     return minutosA - minutosB;
   });
+
+  const handleEdit = (agendamento) => {
+    // Definir o agendamento a ser editado e abrir o modal
+    setEditingAppointment(agendamento);
+    setIsModalOpen(true);
+  };
 
   const handleDelete = async (id) => {
     if (window.confirm('Tem certeza que deseja excluir este agendamento?')) {
@@ -380,7 +387,8 @@ const GerenciarClientes = () => {
       doc.text(agendamento.telefone || '', margin + 65, yPos);
       doc.text(agendamento.horario || '', margin + 115, yPos);
       doc.text(agendamento.status || '', margin + 150, yPos);
-      doc.text(agendamento.descricao?.substring(0, 25) || '', margin + 185, yPos);
+      // Usar campo observacoes ou informacoes em vez de descricao
+      doc.text((agendamento.observacoes || agendamento.informacoes || '')?.substring(0, 25), margin + 185, yPos);
       yPos += lineHeight;
     });
 
@@ -471,7 +479,7 @@ const GerenciarClientes = () => {
             <Th>Cidade</Th>
             <Th>Data</Th>
             <Th>Horário</Th>
-            <Th>Descrição</Th>
+            <Th>Observação</Th>
             <Th>Status</Th>
             <Th>Ações</Th>
           </tr>
@@ -483,7 +491,7 @@ const GerenciarClientes = () => {
               <Td>{agendamento.cidade}</Td>
               <Td>{agendamento.data}</Td>
               <Td>{agendamento.horario}</Td>
-              <Td>{agendamento.descricao}</Td>
+              <Td>{agendamento.observacoes || agendamento.informacoes || ''}</Td>
               <Td>
                 <Select
                   value={agendamento.status}
@@ -496,11 +504,19 @@ const GerenciarClientes = () => {
                 </Select>
               </Td>
               <Td>
-                <ActionButton 
-                  onClick={() => handleDelete(agendamento.id)}
-                >
-                  Excluir
-                </ActionButton>
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  <ActionButton 
+                    onClick={() => handleEdit(agendamento)}
+                    style={{ backgroundColor: '#007bff' }}
+                  >
+                    Editar
+                  </ActionButton>
+                  <ActionButton 
+                    onClick={() => handleDelete(agendamento.id)}
+                  >
+                    Excluir
+                  </ActionButton>
+                </div>
               </Td>
             </tr>
           ))}
@@ -510,11 +526,15 @@ const GerenciarClientes = () => {
       {/* Modal de Agendamento */}
       <AgendamentoModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingAppointment(null);
+        }} 
         onSuccess={() => {
-          // Recarregar a lista de agendamentos após criar um novo
+          // Recarregar a lista de agendamentos após criar ou editar
           fetchAgendamentos();
         }}
+        appointmentToEdit={editingAppointment}
       />
     </Container>
   );

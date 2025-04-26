@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 import { FaTimes } from 'react-icons/fa';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 const ModalOverlay = styled.div`
@@ -134,7 +134,7 @@ const TimeButton = styled.button`
   }
 `;
 
-function AgendamentoModal({ isOpen, onClose, onSuccess }) {
+function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
@@ -184,8 +184,26 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
     
     if (isOpen) {
       loadAllData();
+      
+      // Se estiver editando um agendamento existente, preencher os campos com os dados do agendamento
+      if (appointmentToEdit) {
+        setName(appointmentToEdit.nome || '');
+        setPhone(appointmentToEdit.telefone || '');
+        setAdditionalInfo(appointmentToEdit.observacoes || appointmentToEdit.informacoes || '');
+        setSelectedCity(appointmentToEdit.cidadeId || '');
+        setSelectedDate(appointmentToEdit.dataId || '');
+        setSelectedTime(appointmentToEdit.horario || '');
+      } else {
+        // Limpar os campos se for um novo agendamento
+        setName('');
+        setPhone('');
+        setAdditionalInfo('');
+        setSelectedCity('');
+        setSelectedDate('');
+        setSelectedTime('');
+      }
     }
-  }, [isOpen, fetchScheduleConfigs, fetchCities, fetchAvailableDates]);
+  }, [isOpen, appointmentToEdit]);
 
   useEffect(() => {
     if (selectedCity) {
@@ -432,69 +450,57 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validar formulário
     if (!validateForm()) {
       return;
     }
     
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
+      // Encontrar o objeto da cidade selecionada
+      const selectedCityObject = cities.find(city => city.id === selectedCity);
+      const cityName = selectedCityObject ? selectedCityObject.name : '';
       
-      // Encontrar o nome da cidade a partir do ID
-      const cityObj = cities.find(city => city.id === selectedCity);
-      const cityName = cityObj ? cityObj.name : '';
+      // Encontrar o objeto da data selecionada
+      const selectedDateObject = availableDates.find(date => date.id === selectedDate);
+      const dateString = selectedDateObject ? selectedDateObject.data : '';
       
-      // Encontrar a data formatada a partir do ID
-      const dateObj = availableDates.find(date => date.id === selectedDate);
-      const formattedDate = dateObj ? dateObj.data : '';
+      // Encontrar o médico associado à cidade
+      const doctor = doctors.find(doc => {
+        const normalizedDocCity = normalizeString(doc.cidade || '');
+        const normalizedCity = normalizeString(cityName || '');
+        return normalizedDocCity === normalizedCity;
+      });
       
-      if (!cityName || !formattedDate) {
-        throw new Error("Não foi possível encontrar os dados completos da cidade ou data");
-      }
-      
-      // Verificar se o horário já está agendado
-      const bookedAppointmentsRef = collection(db, 'agendamentos');
-      const q = query(
-        bookedAppointmentsRef, 
-        where('cidade', '==', cityName),
-        where('data', '==', formattedDate),
-        where('horario', '==', selectedTime)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      // Verificar se existe algum agendamento não cancelado para este horário
-      const existingAppointment = querySnapshot.docs.find(doc => doc.data().status !== 'cancelado');
-      
-      if (existingAppointment) {
-        throw new Error("Este horário já está agendado. Por favor, escolha outro horário.");
-      }
-      
-      // Criar o agendamento
-      const agendamentoData = {
-        paciente: name, // Campo principal para o nome do cliente
-        cliente: name, // Campo alternativo para compatibilidade
-        nome: name, // Campo alternativo para compatibilidade
+      // Criar objeto de agendamento
+      const appointmentData = {
+        nome: name,
         telefone: phone,
-        cidade: cityName, // Armazenar o NOME da cidade (não o ID)
-        cidadeId: selectedCity, // Armazenar também o ID da cidade para referência
-        data: formattedDate, // Armazenar a data formatada (não o ID)
-        dataId: selectedDate, // Armazenar também o ID da data para referência
+        cidade: cityName,
+        cidadeId: selectedCity,
+        data: dateString,
+        dataId: selectedDate,
         horario: selectedTime,
-        medico: selectedCityDoctor,
-        observacoes: additionalInfo,
-        status: 'pendente',
-        createdAt: serverTimestamp()
+        status: appointmentToEdit ? appointmentToEdit.status : 'pendente',
+        observacoes: additionalInfo, // Usar campo observacoes em vez de informacoes
+        updatedAt: serverTimestamp(),
+        medico: doctor ? doctor.nome : '',
+        medicoId: doctor ? doctor.id : ''
       };
       
-      console.log("Criando agendamento com os dados:", agendamentoData);
+      // Se estiver editando, atualizar o agendamento existente
+      if (appointmentToEdit) {
+        await updateDoc(doc(db, 'agendamentos', appointmentToEdit.id), appointmentData);
+        toast.success('Agendamento atualizado com sucesso!');
+      } else {
+        // Se for novo, adicionar createdAt
+        appointmentData.createdAt = serverTimestamp();
+        await createAppointment(appointmentData);
+        toast.success('Agendamento criado com sucesso! Aguarde confirmação via WhatsApp.');
+      }
       
-      // Adicionar à coleção de agendamentos
-      const docRef = await addDoc(collection(db, 'agendamentos'), agendamentoData);
-      
-      console.log("Agendamento criado com ID:", docRef.id);
-      toast.success("Agendamento realizado com sucesso! Aguarde a confirmação via WhatsApp.");
-      
-      // Limpar o formulário
+      // Limpar formulário
       setSelectedCity('');
       setSelectedDate('');
       setSelectedTime('');
@@ -507,8 +513,8 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
       onClose();
       
     } catch (error) {
-      console.error("Erro ao criar agendamento:", error);
-      toast.error(error.message || "Erro ao criar agendamento. Por favor, tente novamente.");
+      console.error("Erro ao ", appointmentToEdit ? "atualizar" : "criar", " agendamento:", error);
+      toast.error(error.message || `Erro ao ${appointmentToEdit ? 'atualizar' : 'criar'} agendamento. Por favor, tente novamente.`);
     } finally {
       setIsLoading(false);
     }
@@ -522,7 +528,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
         <CloseButton onClick={onClose}>
           <FaTimes />
         </CloseButton>
-        <Title>Novo Agendamento</Title>
+        <Title>{appointmentToEdit ? 'Editar Agendamento' : 'Novo Agendamento'}</Title>
         
         {isLoading ? (
           <div>Carregando...</div>
@@ -610,7 +616,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
             </FormGroup>
             
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Processando..." : "Confirmar Agendamento"}
+              {isLoading ? "Processando..." : appointmentToEdit ? "Atualizar Agendamento" : "Confirmar Agendamento"}
             </Button>
           </Form>
         )}
