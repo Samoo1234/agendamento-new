@@ -285,16 +285,30 @@ export const checkTimeAvailability = async (cidade, data, horario) => {
     
     // Consulta para verificar se já existe um agendamento com a mesma cidade, data e horário
     const appointmentsRef = collection(db, 'agendamentos');
-    const q = query(
+    // Precisamos verificar se há agendamentos com status 'pendente' ou 'confirmado'
+    // Como o Firestore não suporta OR em where diretamente, fazemos duas consultas
+    const q1 = query(
       appointmentsRef,
       where('cidade', '==', cidade),
       where('data', '==', data),
       where('horario', '==', horario),
-      where('status', '==', 'Agendado')
+      where('status', '==', 'pendente')
     );
     
-    const querySnapshot = await getDocs(q);
-    const isAvailable = querySnapshot.empty;
+    const q2 = query(
+      appointmentsRef,
+      where('cidade', '==', cidade),
+      where('data', '==', data),
+      where('horario', '==', horario),
+      where('status', '==', 'confirmado')
+    );
+    
+    // Executar ambas as consultas
+    const querySnapshot1 = await getDocs(q1);
+    const querySnapshot2 = await getDocs(q2);
+    
+    // O horário está disponível apenas se ambas as consultas não retornarem resultados
+    const isAvailable = querySnapshot1.empty && querySnapshot2.empty;
     
     console.log(`Horário ${isAvailable ? 'disponível' : 'já agendado'}`);
     return isAvailable;
@@ -361,15 +375,32 @@ export const getBookedTimes = async (cidade, data) => {
     
     // Consulta para buscar todos os agendamentos da mesma cidade e data
     const appointmentsRef = collection(db, 'agendamentos');
-    const q = query(
+    
+    // Consulta para agendamentos com status 'pendente'
+    const q1 = query(
       appointmentsRef,
       where('cidade', '==', cidade),
       where('data', '==', data),
-      where('status', '==', 'Agendado')
+      where('status', '==', 'pendente')
     );
     
-    const querySnapshot = await getDocs(q);
-    const bookedTimes = querySnapshot.docs.map(doc => sanitizeFirestoreData(doc.data()).horario);
+    // Consulta para agendamentos com status 'confirmado'
+    const q2 = query(
+      appointmentsRef,
+      where('cidade', '==', cidade),
+      where('data', '==', data),
+      where('status', '==', 'confirmado')
+    );
+    
+    // Executar ambas as consultas
+    const querySnapshot1 = await getDocs(q1);
+    const querySnapshot2 = await getDocs(q2);
+    
+    // Combinar os resultados de ambas as consultas
+    const bookedTimes = [
+      ...querySnapshot1.docs.map(doc => sanitizeFirestoreData(doc.data()).horario),
+      ...querySnapshot2.docs.map(doc => sanitizeFirestoreData(doc.data()).horario)
+    ];
     
     console.log(`Horários já agendados: ${bookedTimes.join(', ') || 'Nenhum'}`);
     return bookedTimes;

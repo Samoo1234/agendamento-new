@@ -492,7 +492,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess }) {
       const docRef = await addDoc(collection(db, 'agendamentos'), agendamentoData);
       
       console.log("Agendamento criado com ID:", docRef.id);
-      toast.success("Agendamento realizado com sucesso!");
+      toast.success("Agendamento realizado com sucesso! Aguarde a confirmação via WhatsApp.");
       
       // Limpar o formulário
       setSelectedCity('');

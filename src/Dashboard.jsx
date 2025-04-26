@@ -167,7 +167,7 @@ function Dashboard() {
       }
       
       // Contar por status
-      const status = appointment.status || 'Agendado';
+      const status = appointment.status || 'pendente';
       if (appointmentsByStatus.hasOwnProperty(status)) {
         appointmentsByStatus[status]++;
       }

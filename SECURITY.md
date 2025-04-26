@@ -58,3 +58,6 @@ Verifique se estas regras estão aplicadas corretamente no console do Firebase.
 ## Contato para Questões de Segurança
 
 Se você encontrar vulnerabilidades de segurança, entre em contato imediatamente com o administrador do sistema.
+
+https://cdpe.criadordigital.cloud/webhook/envio de template
+https://cdpe.criadordigital.cloud/webhook-test/envio%20de%20template

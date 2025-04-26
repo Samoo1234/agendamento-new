@@ -476,7 +476,7 @@ function AgendamentoForm() {
         nome: name,
         telefone: phone,
         informacoes: additionalInfo || '',
-        status: 'Agendado',
+        status: 'pendente',
         criadoEm: new Date().toISOString()
       };
       
@@ -484,7 +484,7 @@ function AgendamentoForm() {
       
       await createAppointment(appointmentData);
 
-      toast.success('Consulta agendada com sucesso!');
+      toast.success('Consulta agendada com sucesso! Aguarde a confirmação via WhatsApp.');
       setSelectedCity('');
       setSelectedDate('');
       setSelectedTime('');
