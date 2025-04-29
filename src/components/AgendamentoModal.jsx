@@ -493,6 +493,14 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
         const selectedDateObject = availableDates.find(date => date.id === selectedDate);
         const dateString = selectedDateObject ? selectedDateObject.data : '';
         
+        // Função para normalizar strings (remover acentos, converter para minúsculas)
+        const normalizeString = (str) => {
+          return str
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
+        };
+        
         // Encontrar o médico associado à cidade
         const doctor = doctors.find(doc => {
           const normalizedDocCity = normalizeString(doc.cidade || '');
