@@ -101,7 +101,7 @@ const Financeiro = () => {
   });
   const [mapaCidadeDatas, setMapaCidadeDatas] = useState(new Map());
   const [pagamentosDivididos, setPagamentosDivididos] = useState({});
-  const [tiposAtendimento, setTiposAtendimento] = useState({});
+
 
   // Carregar cidades e datas disponíveis
   useEffect(() => {
@@ -385,10 +385,14 @@ const Financeiro = () => {
       totalParticular: 0,
       totalConvenio: 0,
       totalCampanha: 0,
+      totalExames: 0,
+      totalRevisao: 0,
       totalGeral: 0,
       countParticular: 0,
       countConvenio: 0,
       countCampanha: 0,
+      countExames: 0,
+      countRevisao: 0,
       countTotal: 0,
       countDinheiro: 0,
       countCartao: 0,
@@ -421,6 +425,15 @@ const Financeiro = () => {
         case 'campanha':
           stats.totalCampanha += valor;
           stats.countCampanha++;
+          break;
+        case 'exames':
+          stats.totalExames += valor;
+          stats.countExames++;
+          break;
+        case 'revisão':
+        case 'revisao':
+          stats.totalRevisao += valor;
+          stats.countRevisao++;
           break;
       }
       
@@ -657,7 +670,7 @@ const Financeiro = () => {
     const margin = 15;
     const pageWidth = doc.internal.pageSize.getWidth(); // Agora maior por causa da orientação paisagem
     // Ajustando as larguras das colunas com mais espaço disponível na orientação paisagem
-    const colWidths = [60, 30, 35, 60, 35, 35, 50]; // Larguras das colunas aumentadas
+    const colWidths = [60, 30, 40, 60, 40, 60]; // Larguras das colunas aumentadas e ajustadas para 6 colunas
     
     // Calcular a largura total e ajustar proporcionalmente
     const totalWidth = colWidths.reduce((a, b) => a + b, 0);
@@ -672,7 +685,7 @@ const Financeiro = () => {
     
     // Desenhar cabeçalho
     let currentX = margin;
-    const headers = ["Cliente", "R$", "Tipo", "Forma de Pagamento", "Situação", "Status", "Observações"];
+    const headers = ["Cliente", "R$", "Tipo", "Forma de Pagamento", "Situação", "Observações"];
     
     // Desenhar retângulo de fundo para o cabeçalho
     doc.rect(margin, startY, pageWidth - 2 * margin, lineHeight, 'FD');
@@ -701,7 +714,6 @@ const Financeiro = () => {
         registro.tipo || '',
         formaPagamentoDisplay || '',
         registro.situacao || '',
-        registro.status || 'Consultas',
         registro.observacoes || ''
       ];
       
@@ -727,11 +739,10 @@ const Financeiro = () => {
         let cellText = cell;
         const maxLength = i === 0 ? 25 : // Cliente
                         i === 1 ? 10 : // R$
-                        i === 2 ? 12 : // Tipo
+                        i === 2 ? 15 : // Tipo
                         i === 3 ? 18 : // Forma de Pagamento
                         i === 4 ? 12 : // Situação
-                        i === 5 ? 12 : // Status
-                        25;            // Observações
+                        30;            // Observações
         
         if (cellText.length > maxLength) {
           cellText = cellText.substring(0, maxLength - 3) + '...';
@@ -786,8 +797,6 @@ const salvarEdicaoRegistro = async (registro) => {
     const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
     const nomeCidade = cidadeSelecionadaObj ? cidadeSelecionadaObj.name : 'Desconhecida';
     
-    // Obter o tipo de atendimento selecionado
-    const tipoAtendimento = tiposAtendimento[registro.id] || 'Consultas';
     
     // Preparar as formas de pagamento
     const formasPagamento = pagamentosRegistro.map(p => ({
@@ -803,7 +812,7 @@ const salvarEdicaoRegistro = async (registro) => {
       formaPagamento: pagamentosRegistro[0].formaPagamento, // Manter compatibilidade com registros antigos
       formasPagamento: formasPagamento, // Novo campo para pagamentos divididos
       situacao: registro.situacao,
-      status: tipoAtendimento, // Usar o tipo de atendimento selecionado
+      // O campo status foi removido, pois agora usamos apenas o campo tipo
       observacoes: registro.observacoes || '',
       cidade: nomeCidade, // Usar o nome da cidade em vez do ID
       cidadeId: cidadeSelecionada, // Manter o ID da cidade para referência
@@ -845,7 +854,6 @@ const adicionarNovoRegistro = (agendamentoId, cliente, valor, id) => {
       tipo: '',
       formaPagamento: '',
       situacao: '',
-      status: 'Consultas', // Valor padrão para o status
       observacoes: '',
       novo: true,
       editando: true,
@@ -857,11 +865,7 @@ const adicionarNovoRegistro = (agendamentoId, cliente, valor, id) => {
     // Adicionar o novo registro à lista de registros
     setRegistrosFinanceiros(prev => [...prev, novoRegistro]);
 
-    // Inicializar o tipo de atendimento para este registro
-    setTiposAtendimento(prev => ({
-      ...prev,
-      [novoId]: 'Consultas'
-    }));
+
     
     // Inicializar pagamentos divididos para este registro
     setPagamentosDivididos(prev => ({
@@ -907,8 +911,6 @@ const salvarNovoRegistro = async (registro) => {
     const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
     const nomeCidade = cidadeSelecionadaObj ? cidadeSelecionadaObj.name : 'Desconhecida';
     
-    // Obter o tipo de atendimento selecionado
-    const tipoAtendimento = tiposAtendimento[registro.id] || 'Consultas';
     
     // Preparar as formas de pagamento
     const formasPagamento = pagamentos.map(p => ({
@@ -924,7 +926,7 @@ const salvarNovoRegistro = async (registro) => {
       formaPagamento: pagamentos[0].formaPagamento, // Manter compatibilidade com registros antigos
       formasPagamento: formasPagamento, // Novo campo para pagamentos divididos
       situacao: registro.situacao,
-      status: tipoAtendimento, // Usar o tipo de atendimento selecionado
+      // O campo status foi removido, pois agora usamos apenas o campo tipo
       observacoes: registro.observacoes || '',
       cidade: nomeCidade, // Usar o nome da cidade em vez do ID
       cidadeId: cidadeSelecionada, // Manter o ID da cidade para referência
@@ -966,11 +968,7 @@ const salvarNovoRegistro = async (registro) => {
     // Inicializar pagamentos divididos se não existirem
     const registro = registrosFinanceiros.find(r => r.id === id);
     if (registro) {
-      // Inicializar o tipo de atendimento para este registro
-      setTiposAtendimento(prev => ({
-        ...prev,
-        [id]: registro.status || 'Consultas'
-      }));
+
       
       // Inicializar pagamentos divididos
       if (!pagamentosDivididos[id]) {
@@ -1022,14 +1020,8 @@ const salvarNovoRegistro = async (registro) => {
       // Remover o registro do estado local
       setRegistrosFinanceiros(prev => prev.filter(registro => registro.id !== id));
       
-      // Limpar os pagamentos divididos e tipo de atendimento associados a este registro
+      // Limpar os pagamentos divididos associados a este registro
       setPagamentosDivididos(prev => {
-        const newState = { ...prev };
-        delete newState[id];
-        return newState;
-      });
-      
-      setTiposAtendimento(prev => {
         const newState = { ...prev };
         delete newState[id];
         return newState;
@@ -1155,14 +1147,7 @@ const salvarNovoRegistro = async (registro) => {
     }
   };
 
-  // Função para atualizar o tipo de atendimento
-  const handleTipoAtendimentoChange = (registroId, tipo) => {
-    console.log(`Atualizando tipo de atendimento: registro=${registroId}, tipo=${tipo}`);
-    setTiposAtendimento(prev => ({
-      ...prev,
-      [registroId]: tipo
-    }));
-  };
+
 
   // Função para formatar valor como moeda (R$ 0,00)
   const formatarValorMoeda = (valor) => {
@@ -1265,7 +1250,6 @@ const salvarNovoRegistro = async (registro) => {
                     <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Tipo</th>
                     <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Forma de Pagamento</th>
                     <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Situação</th>
-                    <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Status</th>
                     <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Observações</th>
                     <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Ações</th>
                   </tr>
@@ -1273,7 +1257,7 @@ const salvarNovoRegistro = async (registro) => {
                 <tbody>
                   {registrosFinanceiros.length === 0 ? (
                     <tr>
-                      <td colSpan="8" style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>
+                      <td colSpan="7" style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'center' }}>
                         Nenhum registro encontrado para esta data e cidade.
                       </td>
                     </tr>
@@ -1326,6 +1310,8 @@ const salvarNovoRegistro = async (registro) => {
                                 <option value="Particular">Particular</option>
                                 <option value="Convênio">Convênio</option>
                                 <option value="Campanha">Campanha</option>
+                                <option value="Exames">Exames</option>
+                                <option value="Revisão">Revisão</option>
                               </select>
                             ) : (
                               registro.tipo
@@ -1344,7 +1330,7 @@ const salvarNovoRegistro = async (registro) => {
                                       <option value="">Selecione</option>
                                       <option value="Dinheiro">Dinheiro</option>
                                       <option value="Cartão">Cartão</option>
-                                      <option value="PIX/Pic pay">PIX/Pic pay</option>
+                                      <option value="PIX">PIX</option>
                                     </select>
                                     <input
                                       type="text"
@@ -1433,17 +1419,7 @@ const salvarNovoRegistro = async (registro) => {
                               registro.situacao
                             )}
                           </td>
-                          <td style={{ border: '1px solid #ddd', padding: '8px' }}>
-                            <select
-                              value={tiposAtendimento[registro.id] || registro.status || 'Consultas'}
-                              onChange={(e) => handleTipoAtendimentoChange(registro.id, e.target.value)}
-                              style={{ width: '100%' }}
-                            >
-                              <option value="Consultas">Consultas</option>
-                              <option value="Exames">Exames</option>
-                              <option value="Revisão">Revisão</option>
-                            </select>
-                          </td>
+
                           <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                             {registro.editando || registro.novo ? (
                               <input
@@ -1562,6 +1538,16 @@ const salvarNovoRegistro = async (registro) => {
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countCampanha}</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalCampanha)}</td>
                     </tr>
+                    <tr>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>Exames</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countExames}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalExames)}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>Revisão</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countRevisao}</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalRevisao)}</td>
+                    </tr>
                     <tr style={{ fontWeight: 'bold' }}>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>Total</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countTotal}</td>
@@ -1592,7 +1578,7 @@ const salvarNovoRegistro = async (registro) => {
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalCartao)}</td>
                     </tr>
                     <tr>
-                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>PIX/Pic pay</td>
+                      <td style={{ border: '1px solid #ddd', padding: '8px' }}>PIX</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{estatisticas.countPix}</td>
                       <td style={{ border: '1px solid #ddd', padding: '8px' }}>{formatarValorMoeda(estatisticas.totalPix)}</td>
                     </tr>
