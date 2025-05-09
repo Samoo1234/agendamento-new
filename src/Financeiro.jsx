@@ -616,160 +616,303 @@ const Financeiro = () => {
   };
 
   const gerarPDF = () => {
-  try {
-    console.log('Gerando PDF...');
-    
-    // Verificar se há registros para gerar o PDF
-    if (!registrosFinanceiros || registrosFinanceiros.length === 0) {
-      alert('Não há registros financeiros para gerar o PDF.');
-      return;
-    }
-    
-    // Criar novo documento PDF com orientação paisagem
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    // Adicionar título
-    const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
-    const nomeCidade = cidadeSelecionadaObj ? cidadeSelecionadaObj.name : 'Desconhecida';
-    
-    const dataObj = datas.find(d => d.id === dataSelecionada);
-    const dataFormatada = dataObj ? dataObj.data : 'Data desconhecida';
-    
-    doc.setFontSize(18);
-    doc.text(`Relatório Financeiro - ${nomeCidade}`, 14, 20);
-    doc.setFontSize(14);
-    doc.text(`Data: ${dataFormatada} (${diaSemana})`, 14, 30);
-    
-    // Função para converter horário para minutos (definida localmente para uso no PDF)
-    const getMinutosLocal = (horario) => {
-      if (!horario) return 0;
-      const [horas, minutos] = horario.split(':').map(Number);
-      return (horas * 60) + minutos;
-    };
-    
-    // Ordenar registros por horário de agendamento (mesma lógica usada no frontend)
-    const registrosOrdenados = [...registrosFinanceiros].sort((a, b) => {
-      // Buscar agendamentos correspondentes
-      const agendamentoA = agendamentos.find(ag => ag.id === a.agendamentoId);
-      const agendamentoB = agendamentos.find(ag => ag.id === b.agendamentoId);
+    try {
+      console.log('Gerando PDF...');
       
-      // Converter horário para minutos
-      const horaA = agendamentoA ? getMinutosLocal(agendamentoA.horario) : 0;
-      const horaB = agendamentoB ? getMinutosLocal(agendamentoB.horario) : 0;
-      
-      return horaA - horaB;
-    });
-    
-    // Configurar tabela manual
-    let startY = 40;
-    const lineHeight = 12; // Altura da linha
-    const margin = 15;
-    const pageWidth = doc.internal.pageSize.getWidth(); // Agora maior por causa da orientação paisagem
-    // Ajustando as larguras das colunas com mais espaço disponível na orientação paisagem
-    const colWidths = [60, 30, 40, 60, 40, 60]; // Larguras das colunas aumentadas e ajustadas para 6 colunas
-    
-    // Calcular a largura total e ajustar proporcionalmente
-    const totalWidth = colWidths.reduce((a, b) => a + b, 0);
-    const scaleFactor = (pageWidth - 2 * margin) / totalWidth;
-    const scaledWidths = colWidths.map(w => w * scaleFactor);
-    
-    // Cabeçalho da tabela
-    doc.setFillColor(220, 220, 220); // Cinza claro
-    doc.setDrawColor(0, 0, 0); // Preto
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-    
-    // Desenhar cabeçalho
-    let currentX = margin;
-    const headers = ["Cliente", "R$", "Tipo", "Forma de Pagamento", "Situação", "Observações"];
-    
-    // Desenhar retângulo de fundo para o cabeçalho
-    doc.rect(margin, startY, pageWidth - 2 * margin, lineHeight, 'FD');
-    
-    // Adicionar textos do cabeçalho
-    headers.forEach((header, i) => {
-      doc.text(header, currentX + 2, startY + lineHeight - 2); // +2 para padding, -2 para alinhar texto
-      currentX += scaledWidths[i];
-    });
-    
-    startY += lineHeight;
-    
-    // Adicionar linhas de dados
-    doc.setFontSize(8);
-    doc.setDrawColor(200, 200, 200); // Cinza mais claro para as linhas
-    
-    // Processar registros ordenados para o PDF
-    registrosOrdenados.forEach((registro, rowIndex) => {
-      const formaPagamentoDisplay = registro.formasPagamento && Array.isArray(registro.formasPagamento) ?
-        registro.formasPagamento.map(p => `${p.formaPagamento}: R$ ${formatarValorMoeda(p.valor)}`).join(', ') :
-        registro.formaPagamento;
-      
-      const rowData = [
-        registro.cliente || '',
-        `R$ ${formatarValorMoeda(registro.valor)}`,
-        registro.tipo || '',
-        formaPagamentoDisplay || '',
-        registro.situacao || '',
-        registro.observacoes || ''
-      ];
-      
-      // Verificar se precisamos de uma nova página
-      if (startY > doc.internal.pageSize.getHeight() - 20) {
-        doc.addPage();
-        startY = 20;
+      // Verificar se há registros para gerar o PDF
+      if (!registrosFinanceiros || registrosFinanceiros.length === 0) {
+        alert('Não há registros financeiros para gerar o PDF.');
+        return;
       }
       
-      // Desenhar retângulo de fundo alternado para as linhas
-      if (rowIndex % 2 === 0) {
-        doc.setFillColor(245, 245, 245); // Cinza bem claro
-        doc.rect(margin, startY, pageWidth - 2 * margin, lineHeight, 'FD');
-      } else {
-        doc.setFillColor(255, 255, 255); // Branco
-        doc.rect(margin, startY, pageWidth - 2 * margin, lineHeight, 'FD');
-      }
+      // Criar novo documento PDF com orientação paisagem
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
       
-      // Adicionar textos da linha
-      currentX = margin;
-      rowData.forEach((cell, i) => {
-        // Limitar o texto para caber na coluna e evitar sobreposição
-        let cellText = cell;
-        const maxLength = i === 0 ? 25 : // Cliente
-                        i === 1 ? 10 : // R$
-                        i === 2 ? 15 : // Tipo
-                        i === 3 ? 18 : // Forma de Pagamento
-                        i === 4 ? 12 : // Situação
-                        30;            // Observações
+      // Adicionar título
+      const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
+      const nomeCidade = cidadeSelecionadaObj ? cidadeSelecionadaObj.name : 'Desconhecida';
+      
+      const dataObj = datas.find(d => d.id === dataSelecionada);
+      const dataFormatada = dataObj ? dataObj.data : 'Data desconhecida';
+      
+      doc.setFontSize(18);
+      doc.text(`Relatório Financeiro - ${nomeCidade}`, 14, 20);
+      doc.setFontSize(14);
+      doc.text(`Data: ${dataFormatada} (${diaSemana})`, 14, 30);
+      
+      // Função para converter horário para minutos (definida localmente para uso no PDF)
+      const getMinutosLocal = (horario) => {
+        if (!horario) return 0;
+        const [horas, minutos] = horario.split(':').map(Number);
+        return (horas * 60) + minutos;
+      };
+      
+      // Ordenar registros por horário de agendamento (mesma lógica usada no frontend)
+      const registrosOrdenados = [...registrosFinanceiros].sort((a, b) => {
+        // Buscar agendamentos correspondentes
+        const agendamentoA = agendamentos.find(ag => ag.id === a.agendamentoId);
+        const agendamentoB = agendamentos.find(ag => ag.id === b.agendamentoId);
         
-        if (cellText.length > maxLength) {
-          cellText = cellText.substring(0, maxLength - 3) + '...';
-        }
+        // Converter horário para minutos
+        const horaA = agendamentoA ? getMinutosLocal(agendamentoA.horario) : 0;
+        const horaB = agendamentoB ? getMinutosLocal(agendamentoB.horario) : 0;
         
-        // Adicionar padding para evitar sobreposição com bordas
-        doc.text(cellText, currentX + 3, startY + lineHeight - 3);
+        return horaA - horaB;
+      });
+      
+      // Configurar tabela manual
+      let startY = 40;
+      const lineHeight = 12; // Altura da linha
+      const margin = 15;
+      const pageWidth = doc.internal.pageSize.getWidth(); // Agora maior por causa da orientação paisagem
+      // Ajustando as larguras das colunas com mais espaço disponível na orientação paisagem
+      const colWidths = [60, 30, 40, 60, 40, 60]; // Larguras das colunas aumentadas e ajustadas para 6 colunas
+      
+      // Calcular a largura total e ajustar proporcionalmente
+      const totalWidth = colWidths.reduce((a, b) => a + b, 0);
+      const scaleFactor = (pageWidth - 2 * margin) / totalWidth;
+      const scaledWidths = colWidths.map(w => w * scaleFactor);
+      
+      // Cabeçalho da tabela
+      doc.setFillColor(220, 220, 220); // Cinza claro
+      doc.setDrawColor(0, 0, 0); // Preto
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      
+      // Desenhar cabeçalho
+      let currentX = margin;
+      const headers = ["Cliente", "R$", "Tipo", "Forma de Pagamento", "Situação", "Observações"];
+      
+      // Desenhar retângulo de fundo para o cabeçalho
+      doc.rect(margin, startY, pageWidth - 2 * margin, lineHeight, 'FD');
+      
+      // Adicionar textos do cabeçalho
+      headers.forEach((header, i) => {
+        doc.text(header, currentX + 2, startY + lineHeight - 2); // +2 para padding, -2 para alinhar texto
         currentX += scaledWidths[i];
       });
       
       startY += lineHeight;
-    });
-    
-    // Salvar PDF
-    doc.save(`Relatorio_Financeiro_${nomeCidade}_${dataFormatada}.pdf`);
-    console.log('PDF gerado com sucesso!');
-    
-  } catch (error) {
-    console.error('Erro ao gerar PDF:', error);
-    alert(`Erro ao gerar PDF: ${error.message}`);
-  }
-};
+      
+      // Adicionar linhas de dados
+      doc.setFontSize(8);
+      doc.setDrawColor(200, 200, 200); // Cinza mais claro para as linhas
+      
+      // Processar registros ordenados para o PDF
+      registrosOrdenados.forEach((registro, rowIndex) => {
+        const formaPagamentoDisplay = registro.formasPagamento && Array.isArray(registro.formasPagamento) ?
+          registro.formasPagamento.map(p => `${p.formaPagamento}: R$ ${formatarValorMoeda(p.valor)}`).join(', ') :
+          registro.formaPagamento;
+        
+        const rowData = [
+          registro.cliente || '',
+          `R$ ${formatarValorMoeda(registro.valor)}`,
+          registro.tipo || '',
+          formaPagamentoDisplay || '',
+          registro.situacao || '',
+          registro.observacoes || ''
+        ];
+        
+        // Verificar se precisamos de uma nova página
+        if (startY > doc.internal.pageSize.getHeight() - 20) {
+          doc.addPage();
+          startY = 20;
+        }
+        
+        // Desenhar retângulo de fundo alternado para as linhas
+        if (rowIndex % 2 === 0) {
+          doc.setFillColor(245, 245, 245); // Cinza bem claro
+          doc.rect(margin, startY, pageWidth - 2 * margin, lineHeight, 'FD');
+        } else {
+          doc.setFillColor(255, 255, 255); // Branco
+          doc.rect(margin, startY, pageWidth - 2 * margin, lineHeight, 'FD');
+        }
+        
+        // Adicionar textos da linha
+        currentX = margin;
+        rowData.forEach((cell, i) => {
+          // Limitar o texto para caber na coluna e evitar sobreposição
+          let cellText = cell;
+          const maxLength = i === 0 ? 25 : // Cliente
+                          i === 1 ? 10 : // R$
+                          i === 2 ? 15 : // Tipo
+                          i === 3 ? 18 : // Forma de Pagamento
+                          i === 4 ? 12 : // Situação
+                          30;            // Observações
+          
+          if (cellText.length > maxLength) {
+            cellText = cellText.substring(0, maxLength - 3) + '...';
+          }
+          
+          // Adicionar padding para evitar sobreposição com bordas
+          doc.text(cellText, currentX + 3, startY + lineHeight - 3);
+          currentX += scaledWidths[i];
+        });
+        
+        startY += lineHeight;
+      });
+      
+      // Adicionar espaço após a tabela principal
+      startY += 10;
+      
+      // Verificar se precisamos de uma nova página para as estatísticas
+      if (startY > doc.internal.pageSize.getHeight() - 80) { // Precisamos de pelo menos 80mm para as tabelas de estatísticas
+        doc.addPage();
+        startY = 20;
+      }
+      
+      // Adicionar título para a seção de estatísticas
+      doc.setFontSize(14);
+      doc.text('Resumo Estatístico', margin, startY);
+      startY += 10;
+      
+      // Configurar tabelas de estatísticas lado a lado
+      const halfWidth = (pageWidth - 2 * margin - 10) / 2; // Largura de cada tabela (com 10mm de espaço entre elas)
+      
+      // Tabela 1: Por Tipo
+      doc.setFontSize(12);
+      doc.text('Por Tipo', margin, startY);
+      startY += 5;
+      
+      // Cabeçalho da tabela de tipos
+      doc.setFillColor(220, 220, 220); // Cinza claro
+      doc.setDrawColor(0, 0, 0); // Preto
+      doc.setFontSize(9);
+      doc.rect(margin, startY, halfWidth, lineHeight, 'FD');
+      
+      // Cabeçalhos da tabela de tipos
+      let tiposX = margin;
+      const tiposHeaders = ["Tipo", "Quantidade", "Total (R$)"];
+      const tiposColWidths = [halfWidth * 0.4, halfWidth * 0.3, halfWidth * 0.3]; // 40%, 30%, 30%
+      
+      tiposHeaders.forEach((header, i) => {
+        doc.text(header, tiposX + 3, startY + lineHeight - 3);
+        tiposX += tiposColWidths[i];
+      });
+      
+      startY += lineHeight;
+      
+      // Dados da tabela de tipos
+      doc.setFontSize(8);
+      const tiposData = [
+        { tipo: 'Particular', count: estatisticas.countParticular, total: formatarValorMoeda(estatisticas.totalParticular) },
+        { tipo: 'Convênio', count: estatisticas.countConvenio, total: formatarValorMoeda(estatisticas.totalConvenio) },
+        { tipo: 'Campanha', count: estatisticas.countCampanha, total: formatarValorMoeda(estatisticas.totalCampanha) },
+        { tipo: 'Exames', count: estatisticas.countExames, total: formatarValorMoeda(estatisticas.totalExames) },
+        { tipo: 'Revisão', count: estatisticas.countRevisao, total: formatarValorMoeda(estatisticas.totalRevisao) },
+        { tipo: 'Total', count: estatisticas.countTotal, total: formatarValorMoeda(estatisticas.totalGeral) }
+      ];
+      
+      tiposData.forEach((row, rowIndex) => {
+        // Fundo alternado
+        if (rowIndex % 2 === 0) {
+          doc.setFillColor(245, 245, 245); // Cinza bem claro
+        } else {
+          doc.setFillColor(255, 255, 255); // Branco
+        }
+        
+        // Destacar a linha de total
+        if (rowIndex === tiposData.length - 1) {
+          doc.setFillColor(230, 230, 230); // Cinza mais escuro para o total
+          doc.setFontSize(9); // Texto maior para o total
+        }
+        
+        doc.rect(margin, startY, halfWidth, lineHeight, 'FD');
+        
+        // Textos da linha
+        tiposX = margin;
+        [row.tipo, row.count.toString(), row.total].forEach((cell, i) => {
+          doc.text(cell, tiposX + 3, startY + lineHeight - 3);
+          tiposX += tiposColWidths[i];
+        });
+        
+        startY += lineHeight;
+        
+        // Restaurar fonte normal após a linha de total
+        if (rowIndex === tiposData.length - 1) {
+          doc.setFontSize(8);
+        }
+      });
+      
+      // Tabela 2: Por Forma de Pagamento (ao lado da primeira)
+      const pagamentoStartY = startY - (lineHeight * tiposData.length); // Mesma altura inicial da tabela de tipos
+      const pagamentoX = margin + halfWidth + 10; // Posição X após a primeira tabela + espaço
+      
+      doc.setFontSize(12);
+      doc.text('Por Forma de Pagamento', pagamentoX, pagamentoStartY - 5);
+      
+      // Cabeçalho da tabela de formas de pagamento
+      doc.setFillColor(220, 220, 220); // Cinza claro
+      doc.setDrawColor(0, 0, 0); // Preto
+      doc.setFontSize(9);
+      doc.rect(pagamentoX, pagamentoStartY, halfWidth, lineHeight, 'FD');
+      
+      // Cabeçalhos da tabela de formas de pagamento
+      let pagamentoHeaderX = pagamentoX;
+      const pagamentoHeaders = ["Forma de Pagamento", "Quantidade", "Total (R$)"];
+      const pagamentoColWidths = [halfWidth * 0.4, halfWidth * 0.3, halfWidth * 0.3]; // 40%, 30%, 30%
+      
+      pagamentoHeaders.forEach((header, i) => {
+        doc.text(header, pagamentoHeaderX + 3, pagamentoStartY + lineHeight - 3);
+        pagamentoHeaderX += pagamentoColWidths[i];
+      });
+      
+      let currentPagamentoY = pagamentoStartY + lineHeight;
+      
+      // Dados da tabela de formas de pagamento
+      doc.setFontSize(8);
+      const pagamentoData = [
+        { forma: 'Dinheiro', count: estatisticas.countDinheiro, total: formatarValorMoeda(estatisticas.totalDinheiro) },
+        { forma: 'Cartão', count: estatisticas.countCartao, total: formatarValorMoeda(estatisticas.totalCartao) },
+        { forma: 'PIX', count: estatisticas.countPix, total: formatarValorMoeda(estatisticas.totalPix) }
+      ];
+      
+      pagamentoData.forEach((row, rowIndex) => {
+        // Fundo alternado
+        if (rowIndex % 2 === 0) {
+          doc.setFillColor(245, 245, 245); // Cinza bem claro
+        } else {
+          doc.setFillColor(255, 255, 255); // Branco
+        }
+        
+        doc.rect(pagamentoX, currentPagamentoY, halfWidth, lineHeight, 'FD');
+        
+        // Textos da linha
+        let currentPagamentoX = pagamentoX;
+        [row.forma, row.count.toString(), row.total].forEach((cell, i) => {
+          doc.text(cell, currentPagamentoX + 3, currentPagamentoY + lineHeight - 3);
+          currentPagamentoX += pagamentoColWidths[i];
+        });
+        
+        currentPagamentoY += lineHeight;
+      });
+      
+      // Atualizar startY para o maior valor entre as duas tabelas
+      startY = Math.max(startY, currentPagamentoY);
+      
+      // Adicionar rodapé
+      startY += 10;
+      doc.setFontSize(8);
+      doc.text(`Relatório gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, margin, startY);
+      
+      // Salvar PDF
+      doc.save(`Relatorio_Financeiro_${nomeCidade}_${dataFormatada}.pdf`);
+      console.log('PDF gerado com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert(`Erro ao gerar PDF: ${error.message}`);
+    }
+  };
 
-// Função para salvar edição de registro
-const salvarEdicaoRegistro = async (registro) => {
-  try {
-    // Verificar se todos os campos obrigatórios estão preenchidos
+  // Função para salvar edição de registro
+  const salvarEdicaoRegistro = async (registro) => {
+    try {
+      // Verificar se todos os campos obrigatórios estão preenchidos
     if (!registro.cliente || !registro.valor || !registro.tipo || !registro.situacao) {
       alert('Por favor, preencha todos os campos obrigatórios: Cliente, Valor, Tipo e Situação.');
       return;
