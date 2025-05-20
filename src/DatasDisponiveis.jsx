@@ -196,6 +196,19 @@ function DatasDisponiveis() {
       console.log('ID do médico selecionado:', medicoId);
       console.log('Formulário:', formData);
       
+
+      
+      // Formatar a data para exibição
+      // Extrair ano, mês e dia diretamente da string de data original (formato YYYY-MM-DD)
+      const [ano, mes, dia] = formData.data.split('-').map(num => parseInt(num, 10));
+      
+      // Formatar manualmente para evitar problemas de timezone
+      const dataFormatada = `${dia.toString().padStart(2, '0')}/${mes.toString().padStart(2, '0')}/${ano}`;
+      
+      console.log('Data original:', formData.data);
+      console.log('Data formatada:', dataFormatada);
+      console.log('Componentes da data:', { ano, mes, dia });
+      
       // Buscar documentos diretamente do Firestore usando os IDs
       const cidadeDoc = await firebaseService.getCityById(cidadeId);
       const medicoDoc = await firebaseService.getDoctorById(medicoId);
@@ -208,16 +221,16 @@ function DatasDisponiveis() {
         throw new Error(`Médico com ID ${medicoId} não encontrada`);
       }
       
-      // Formatar a data para exibição
-      // Extrair ano, mês e dia diretamente da string de data original (formato YYYY-MM-DD)
-      const [ano, mes, dia] = formData.data.split('-').map(num => parseInt(num, 10));
+      // Verificar se já existe uma data para esta cidade na mesma data
+      const dataJaExiste = availableDates.some(date => 
+        date.cidadeId === cidadeId && 
+        date.data === dataFormatada && 
+        (!editingId || date.id !== editingId)
+      );
       
-      // Formatar manualmente para evitar problemas de timezone
-      const dataFormatada = `${dia.toString().padStart(2, '0')}/${mes.toString().padStart(2, '0')}/${ano}`;
-      
-      console.log('Data original:', formData.data);
-      console.log('Data formatada:', dataFormatada);
-      console.log('Componentes da data:', { ano, mes, dia });
+      if (dataJaExiste) {
+        throw new Error(`Já existe uma data cadastrada para ${cidadeDoc.name} em ${dataFormatada}`);
+      }
       
       // Preparar dados para salvar
       const dateData = {
