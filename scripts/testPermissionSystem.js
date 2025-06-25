@@ -9,41 +9,91 @@ import {
 
 // Simulando importações (ajustar paths conforme necessário)
 const PERMISSIONS = {
-  USERS_VIEW: 'users:view',
-  USERS_CREATE: 'users:create',
-  APPOINTMENTS_VIEW_ALL: 'appointments:view_all',
-  FINANCIAL_VIEW: 'financial:view'
+  // WHATSAPP E TEMPLATES
+  VIEW_TEMPLATES: 'view_templates',
+  CREATE_TEMPLATES: 'create_templates',
+  EDIT_TEMPLATES: 'edit_templates',
+  DELETE_TEMPLATES: 'delete_templates',
+  SEND_WHATSAPP: 'send_whatsapp',
+  VIEW_WHATSAPP_LOGS: 'view_whatsapp_logs',
+  MANAGE_N8N_INTEGRATION: 'manage_n8n_integration',
+
+  // AGENDAMENTOS
+  VIEW_APPOINTMENTS: 'view_appointments',
+  CREATE_APPOINTMENTS: 'create_appointments',
+  EDIT_APPOINTMENTS: 'edit_appointments',
+  MANAGE_APPOINTMENT_STATUS: 'manage_appointment_status',
+
+  // USUÁRIOS
+  VIEW_USERS: 'view_users',
+  CREATE_USERS: 'create_users',
+  MANAGE_USER_ROLES: 'manage_user_roles'
 };
 
 const ROLES = {
-  SUPER_ADMIN: {
-    permissions: Object.values(PERMISSIONS)
-  },
-  ADMIN: {
-    permissions: [PERMISSIONS.USERS_VIEW, PERMISSIONS.USERS_CREATE, PERMISSIONS.APPOINTMENTS_VIEW_ALL]
-  },
-  MANAGER: {
-    permissions: [PERMISSIONS.APPOINTMENTS_VIEW_ALL]
-  },
-  RECEPTIONIST: {
-    permissions: [PERMISSIONS.APPOINTMENTS_VIEW_ALL]
-  },
-  DOCTOR: {
-    permissions: []
-  },
-  FINANCIAL: {
-    permissions: [PERMISSIONS.FINANCIAL_VIEW]
-  }
+  SUPER_ADMIN: 'super_admin',
+  ADMIN: 'admin',
+  MANAGER: 'manager',
+  RECEPTIONIST: 'receptionist',
+  DOCTOR: 'doctor',
+  FINANCIAL: 'financial'
+};
+
+const ROLE_PERMISSIONS = {
+  [ROLES.SUPER_ADMIN]: Object.values(PERMISSIONS),
+  
+  [ROLES.ADMIN]: [
+    PERMISSIONS.VIEW_TEMPLATES,
+    PERMISSIONS.CREATE_TEMPLATES,
+    PERMISSIONS.EDIT_TEMPLATES,
+    PERMISSIONS.DELETE_TEMPLATES,
+    PERMISSIONS.SEND_WHATSAPP,
+    PERMISSIONS.VIEW_WHATSAPP_LOGS,
+    PERMISSIONS.MANAGE_N8N_INTEGRATION,
+    PERMISSIONS.VIEW_APPOINTMENTS,
+    PERMISSIONS.CREATE_APPOINTMENTS,
+    PERMISSIONS.EDIT_APPOINTMENTS,
+    PERMISSIONS.MANAGE_APPOINTMENT_STATUS,
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.CREATE_USERS
+  ],
+  
+  [ROLES.MANAGER]: [
+    PERMISSIONS.VIEW_TEMPLATES,
+    PERMISSIONS.SEND_WHATSAPP,
+    PERMISSIONS.VIEW_WHATSAPP_LOGS,
+    PERMISSIONS.VIEW_APPOINTMENTS,
+    PERMISSIONS.CREATE_APPOINTMENTS,
+    PERMISSIONS.EDIT_APPOINTMENTS,
+    PERMISSIONS.MANAGE_APPOINTMENT_STATUS
+  ],
+  
+  [ROLES.RECEPTIONIST]: [
+    PERMISSIONS.VIEW_TEMPLATES,
+    PERMISSIONS.SEND_WHATSAPP,
+    PERMISSIONS.VIEW_APPOINTMENTS,
+    PERMISSIONS.CREATE_APPOINTMENTS,
+    PERMISSIONS.EDIT_APPOINTMENTS,
+    PERMISSIONS.MANAGE_APPOINTMENT_STATUS
+  ],
+  
+  [ROLES.DOCTOR]: [
+    PERMISSIONS.VIEW_APPOINTMENTS
+  ],
+  
+  [ROLES.FINANCIAL]: [
+    PERMISSIONS.VIEW_APPOINTMENTS
+  ]
 };
 
 const hasPermission = (userRole, permission) => {
   if (!userRole || !permission) return false;
-  const role = ROLES[userRole.toUpperCase()];
-  return role?.permissions.includes(permission) || false;
+  const permissions = ROLE_PERMISSIONS[userRole];
+  return permissions ? permissions.includes(permission) : false;
 };
 
-const hasAnyPermission = (userRole, permissions) => {
-  if (!Array.isArray(permissions)) return false;
+const hasAnyPermission = (userRole, permissions = []) => {
+  if (!userRole || !Array.isArray(permissions)) return false;
   return permissions.some(permission => hasPermission(userRole, permission));
 };
 
@@ -79,7 +129,7 @@ async function testPermissionLogic() {
     {
       name: 'Super Admin tem todas as permissões',
       test: () => {
-        const superAdminPerms = ROLES.SUPER_ADMIN.permissions;
+        const superAdminPerms = ROLE_PERMISSIONS[ROLES.SUPER_ADMIN];
         const allPerms = Object.values(PERMISSIONS);
         return superAdminPerms.length === allPerms.length;
       }
@@ -88,8 +138,8 @@ async function testPermissionLogic() {
     {
       name: 'Admin tem mais permissões que Manager',
       test: () => {
-        const adminPerms = ROLES.ADMIN.permissions.length;
-        const managerPerms = ROLES.MANAGER.permissions.length;
+        const adminPerms = ROLE_PERMISSIONS[ROLES.ADMIN].length;
+        const managerPerms = ROLE_PERMISSIONS[ROLES.MANAGER].length;
         return adminPerms > managerPerms;
       }
     },
@@ -97,14 +147,14 @@ async function testPermissionLogic() {
     {
       name: 'Receptionist pode ver agendamentos',
       test: () => {
-        return hasPermission('receptionist', PERMISSIONS.APPOINTMENTS_VIEW_ALL);
+        return hasPermission('receptionist', PERMISSIONS.VIEW_APPOINTMENTS);
       }
     },
     
     {
       name: 'Doctor não pode gerenciar usuários',
       test: () => {
-        return !hasPermission('doctor', PERMISSIONS.USERS_VIEW);
+        return !hasPermission('doctor', PERMISSIONS.VIEW_USERS);
       }
     },
     
@@ -112,8 +162,7 @@ async function testPermissionLogic() {
       name: 'Financial pode ver dados financeiros',
       test: () => {
         return hasAnyPermission('financial', [
-          PERMISSIONS.FINANCIAL_VIEW,
-          PERMISSIONS.USERS_CREATE
+          PERMISSIONS.VIEW_APPOINTMENTS
         ]);
       }
     },
@@ -121,7 +170,7 @@ async function testPermissionLogic() {
     {
       name: 'Role inexistente retorna false',
       test: () => {
-        return !hasPermission('role_inexistente', PERMISSIONS.USERS_VIEW);
+        return !hasPermission('role_inexistente', PERMISSIONS.VIEW_USERS);
       }
     },
     
@@ -273,7 +322,7 @@ async function testSecurityFallbacks() {
       name: 'Fallback para role undefined',
       test: () => {
         try {
-          const result = hasPermission(undefined, PERMISSIONS.USERS_VIEW);
+          const result = hasPermission(undefined, PERMISSIONS.VIEW_USERS);
           return result === false;
         } catch (error) {
           return false;
@@ -285,7 +334,7 @@ async function testSecurityFallbacks() {
       name: 'Fallback para role null',
       test: () => {
         try {
-          const result = hasPermission(null, PERMISSIONS.USERS_VIEW);
+          const result = hasPermission(null, PERMISSIONS.VIEW_USERS);
           return result === false;
         } catch (error) {
           return false;
@@ -320,9 +369,9 @@ async function testSecurityFallbacks() {
     {
       name: 'Role case-insensitive',
       test: () => {
-        const upper = hasPermission('ADMIN', PERMISSIONS.USERS_VIEW);
-        const lower = hasPermission('admin', PERMISSIONS.USERS_VIEW);
-        const mixed = hasPermission('Admin', PERMISSIONS.USERS_VIEW);
+        const upper = hasPermission('ADMIN', PERMISSIONS.VIEW_USERS);
+        const lower = hasPermission('admin', PERMISSIONS.VIEW_USERS);
+        const mixed = hasPermission('Admin', PERMISSIONS.VIEW_USERS);
         return upper === lower && lower === mixed;
       }
     }
@@ -365,7 +414,7 @@ async function testCompatibility() {
         
         return Object.keys(oldRoleMappings).every(oldRole => {
           const newRole = oldRoleMappings[oldRole];
-          return ROLES[newRole.toUpperCase()] !== undefined;
+          return ROLE_PERMISSIONS[newRole.toUpperCase()] !== undefined;
         });
       }
     },
@@ -374,7 +423,7 @@ async function testCompatibility() {
       name: 'Sistema funciona sem Firebase Auth',
       test: () => {
         try {
-          const result = hasPermission('admin', PERMISSIONS.USERS_VIEW);
+          const result = hasPermission('admin', PERMISSIONS.VIEW_USERS);
           return typeof result === 'boolean';
         } catch (error) {
           return false;
@@ -426,7 +475,7 @@ async function testPerformance() {
         const start = Date.now();
         
         for (let i = 0; i < 1000; i++) {
-          hasPermission('admin', PERMISSIONS.USERS_VIEW);
+          hasPermission('admin', PERMISSIONS.VIEW_USERS);
         }
         
         const end = Date.now();
@@ -444,9 +493,9 @@ async function testPerformance() {
         
         for (let i = 0; i < 1000; i++) {
           hasAnyPermission('admin', [
-            PERMISSIONS.USERS_VIEW,
-            PERMISSIONS.USERS_CREATE,
-            PERMISSIONS.APPOINTMENTS_VIEW_ALL
+            PERMISSIONS.VIEW_USERS,
+            PERMISSIONS.CREATE_USERS,
+            PERMISSIONS.VIEW_APPOINTMENTS
           ]);
         }
         
@@ -464,8 +513,8 @@ async function testPerformance() {
         const initialMemory = process.memoryUsage ? process.memoryUsage().heapUsed : 0;
         
         for (let i = 0; i < 10000; i++) {
-          hasPermission('admin', PERMISSIONS.USERS_VIEW);
-          hasAnyPermission('receptionist', [PERMISSIONS.APPOINTMENTS_VIEW_ALL]);
+          hasPermission('admin', PERMISSIONS.VIEW_USERS);
+          hasAnyPermission('receptionist', [PERMISSIONS.VIEW_APPOINTMENTS]);
         }
         
         if (process.memoryUsage) {

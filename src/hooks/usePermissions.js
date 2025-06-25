@@ -1,6 +1,16 @@
-import { useMemo } from 'react';
-import { hasPermission, hasAnyPermission, canManageRoles, getUserPermissions } from '../config/permissions';
-import useStore from '../store/useStore';
+import { useState, useEffect } from 'react';
+import { useStore } from '../store/useStore';
+import { 
+  hasPermission as checkPermission, 
+  hasAnyPermission as checkAnyPermission,
+  hasAllPermissions as checkAllPermissions,
+  getRolePermissions,
+  isAdmin,
+  canManageWhatsApp,
+  canManageTemplates,
+  PERMISSIONS,
+  ROLES
+} from '../config/permissions';
 
 /**
  * Hook customizado para verificação de permissões
@@ -9,132 +19,274 @@ import useStore from '../store/useStore';
  */
 export const usePermissions = () => {
   const { user } = useStore();
+  const [isLoading, setIsLoading] = useState(true);
+  const [permissions, setPermissions] = useState([]);
+
+  // Estado do usuário atual
+  const userRole = user?.role || user?.perfil || null;
+  const isAuthenticated = !!user && !!userRole;
+
+  useEffect(() => {
+    // Simular loading pequeno para evitar flash de conteúdo
+    const timer = setTimeout(() => {
+      if (isAuthenticated && userRole) {
+        const userPermissions = getRolePermissions(userRole);
+        setPermissions(userPermissions);
+        console.log(`[usePermissions] Usuário carregado: ${userRole}, Permissões: ${userPermissions.length}`);
+      } else {
+        setPermissions([]);
+        console.log('[usePermissions] Usuário não autenticado ou sem role');
+      }
+      setIsLoading(false);
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [userRole, isAuthenticated]);
+
+  // === FUNÇÕES PRINCIPAIS ===
   
-  const userRole = user?.role;
-  
-  // Memoizar as funções para evitar recriações desnecessárias
-  const permissions = useMemo(() => ({
-    // Verificar permissão específica
-    can: (permission) => {
-      try {
-        // FALLBACK: se não há usuário ou role, permitir acesso (modo desenvolvimento)
-        if (!user || !userRole) {
-          console.warn('usePermissions: Usuário ou role não definido, permitindo acesso');
-          return true;
-        }
-        
-        return hasPermission(userRole, permission);
-      } catch (error) {
-        console.error('Erro na verificação de permissão:', error);
-        // FALLBACK: em caso de erro, permitir acesso para não quebrar a interface
-        return true;
-      }
-    },
-    
-    // Verificar se tem qualquer uma das permissões
-    canAny: (permissionsList) => {
-      try {
-        if (!user || !userRole) {
-          console.warn('usePermissions: Usuário ou role não definido, permitindo acesso');
-          return true;
-        }
-        
-        if (!Array.isArray(permissionsList) || permissionsList.length === 0) {
-          return true;
-        }
-        
-        return hasAnyPermission(userRole, permissionsList);
-      } catch (error) {
-        console.error('Erro na verificação de múltiplas permissões:', error);
-        return true; // FALLBACK
-      }
-    },
-    
-    // Verificar se pode gerenciar roles
-    canManage: () => {
-      try {
-        if (!user || !userRole) return false;
-        return canManageRoles(userRole);
-      } catch (error) {
-        console.error('Erro na verificação de gerenciamento de roles:', error);
-        return false; // Para gerenciamento, ser mais restritivo
-      }
-    },
-    
-    // Obter todas as permissões do usuário
-    getAll: () => {
-      try {
-        if (!user || !userRole) return [];
-        return getUserPermissions(userRole);
-      } catch (error) {
-        console.error('Erro ao obter permissões do usuário:', error);
-        return [];
-      }
-    },
-    
-    // Verificar se é super admin
-    isSuperAdmin: () => {
-      try {
-        return userRole?.toUpperCase() === 'SUPER_ADMIN';
-      } catch (error) {
-        return false;
-      }
-    },
-    
-    // Verificar se é admin (admin ou super_admin)
-    isAdmin: () => {
-      try {
-        return ['ADMIN', 'SUPER_ADMIN'].includes(userRole?.toUpperCase());
-      } catch (error) {
-        return false;
-      }
-    },
-    
-    // Obter role atual
-    getRole: () => {
-      try {
-        return userRole || 'guest';
-      } catch (error) {
-        return 'guest';
-      }
-    },
-    
-    // Verificar se tem acesso a rota
-    canAccessRoute: (routePermissions) => {
-      try {
-        if (!routePermissions || routePermissions.length === 0) return true;
-        
-        if (!user || !userRole) {
-          console.warn('usePermissions: Usuário não autenticado, permitindo acesso à rota');
-          return true;
-        }
-        
-        return hasAnyPermission(userRole, routePermissions);
-      } catch (error) {
-        console.error('Erro na verificação de acesso à rota:', error);
-        return true; // FALLBACK: permitir acesso
-      }
-    },
-    
-    // NOVO: Modo de depuração
-    isDebugMode: () => {
-      return process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
-    },
-    
-    // NOVO: Verificação com modo seguro
-    canSafe: (permission, fallbackValue = false) => {
-      try {
-        if (!user || !userRole) return fallbackValue;
-        return hasPermission(userRole, permission);
-      } catch (error) {
-        console.error('Erro na verificação segura de permissão:', error);
-        return fallbackValue;
-      }
+  // Verificar permissão específica
+  const hasPermission = (permission) => {
+    if (!isAuthenticated || !userRole) {
+      console.warn(`[usePermissions] hasPermission: Usuário não autenticado para permissão ${permission}`);
+      return false;
     }
-  }), [user, userRole]);
+    
+    // Fallback de segurança: sempre permitir para super_admin
+    if (userRole === ROLES.SUPER_ADMIN) {
+      return true;
+    }
+    
+    const result = checkPermission(userRole, permission);
+    console.log(`[usePermissions] hasPermission: ${permission} = ${result} (role: ${userRole})`);
+    return result;
+  };
+
+  // Verificar qualquer uma das permissões
+  const hasAnyPermission = (permissionsList = []) => {
+    if (!isAuthenticated || !userRole) {
+      console.warn(`[usePermissions] hasAnyPermission: Usuário não autenticado`);
+      return false;
+    }
+    
+    // Fallback de segurança: sempre permitir para super_admin
+    if (userRole === ROLES.SUPER_ADMIN) {
+      return true;
+    }
+    
+    const result = checkAnyPermission(userRole, permissionsList);
+    console.log(`[usePermissions] hasAnyPermission: ${JSON.stringify(permissionsList)} = ${result} (role: ${userRole})`);
+    return result;
+  };
+
+  // Verificar todas as permissões
+  const hasAllPermissions = (permissionsList = []) => {
+    if (!isAuthenticated || !userRole) {
+      console.warn(`[usePermissions] hasAllPermissions: Usuário não autenticado`);
+      return false;
+    }
+    
+    // Fallback de segurança: sempre permitir para super_admin
+    if (userRole === ROLES.SUPER_ADMIN) {
+      return true;
+    }
+    
+    const result = checkAllPermissions(userRole, permissionsList);
+    console.log(`[usePermissions] hasAllPermissions: ${JSON.stringify(permissionsList)} = ${result} (role: ${userRole})`);
+    return result;
+  };
+
+  // === VERIFICAÇÕES ESPECÍFICAS DO SISTEMA ===
+
+  // Verificações de Admin
+  const isSuperAdmin = () => userRole === ROLES.SUPER_ADMIN;
+  const isAdminUser = () => isAdmin(userRole);
+  const canManageUsers = () => hasAnyPermission([PERMISSIONS.VIEW_USERS, PERMISSIONS.CREATE_USERS, PERMISSIONS.EDIT_USERS]);
+  const canManageRoles = () => userRole === ROLES.SUPER_ADMIN; // Apenas super admin
+
+  // Verificações de Agendamentos
+  const canViewAppointments = () => hasAnyPermission([PERMISSIONS.VIEW_APPOINTMENTS, PERMISSIONS.VIEW_ALL_APPOINTMENTS, PERMISSIONS.VIEW_OWN_APPOINTMENTS]);
+  const canCreateAppointments = () => hasPermission(PERMISSIONS.CREATE_APPOINTMENTS);
+  const canEditAppointments = () => hasPermission(PERMISSIONS.EDIT_APPOINTMENTS);
+  const canDeleteAppointments = () => hasPermission(PERMISSIONS.DELETE_APPOINTMENTS);
+  const canViewAllAppointments = () => hasPermission(PERMISSIONS.VIEW_ALL_APPOINTMENTS);
+  const canViewOwnAppointments = () => hasPermission(PERMISSIONS.VIEW_OWN_APPOINTMENTS);
+  const canManageAppointmentStatus = () => hasPermission(PERMISSIONS.MANAGE_APPOINTMENT_STATUS);
+
+  // Verificações de Médicos
+  const canViewDoctors = () => hasPermission(PERMISSIONS.VIEW_DOCTORS);
+  const canCreateDoctors = () => hasPermission(PERMISSIONS.CREATE_DOCTORS);
+  const canEditDoctors = () => hasPermission(PERMISSIONS.EDIT_DOCTORS);
+  const canDeleteDoctors = () => hasPermission(PERMISSIONS.DELETE_DOCTORS);
+
+  // Verificações de Cidades/Datas
+  const canViewCities = () => hasPermission(PERMISSIONS.VIEW_CITIES);
+  const canCreateCities = () => hasPermission(PERMISSIONS.CREATE_CITIES);
+  const canEditCities = () => hasPermission(PERMISSIONS.EDIT_CITIES);
+  const canDeleteCities = () => hasPermission(PERMISSIONS.DELETE_CITIES);
+  const canViewDates = () => hasPermission(PERMISSIONS.VIEW_DATES);
+  const canCreateDates = () => hasPermission(PERMISSIONS.CREATE_DATES);
+  const canEditDates = () => hasPermission(PERMISSIONS.EDIT_DATES);
+  const canDeleteDates = () => hasPermission(PERMISSIONS.DELETE_DATES);
+
+  // Verificações de Clientes
+  const canViewClients = () => hasPermission(PERMISSIONS.VIEW_CLIENTS);
+  const canCreateClients = () => hasPermission(PERMISSIONS.CREATE_CLIENTS);
+  const canEditClients = () => hasPermission(PERMISSIONS.EDIT_CLIENTS);
+  const canDeleteClients = () => hasPermission(PERMISSIONS.DELETE_CLIENTS);
+
+  // Verificações Financeiras
+  const canViewFinancial = () => hasPermission(PERMISSIONS.VIEW_FINANCIAL);
+  const canCreateFinancial = () => hasPermission(PERMISSIONS.CREATE_FINANCIAL);
+  const canEditFinancial = () => hasPermission(PERMISSIONS.EDIT_FINANCIAL);
+  const canDeleteFinancial = () => hasPermission(PERMISSIONS.DELETE_FINANCIAL);
+  const canViewFinancialReports = () => hasPermission(PERMISSIONS.VIEW_FINANCIAL_REPORTS);
+
+  // === VERIFICAÇÕES WHATSAPP E TEMPLATES ===
+  const canViewTemplates = () => hasPermission(PERMISSIONS.VIEW_TEMPLATES);
+  const canCreateTemplates = () => hasPermission(PERMISSIONS.CREATE_TEMPLATES);
+  const canEditTemplates = () => hasPermission(PERMISSIONS.EDIT_TEMPLATES);
+  const canDeleteTemplates = () => hasPermission(PERMISSIONS.DELETE_TEMPLATES);
+  const canSendWhatsApp = () => hasPermission(PERMISSIONS.SEND_WHATSAPP);
+  const canViewWhatsAppLogs = () => hasPermission(PERMISSIONS.VIEW_WHATSAPP_LOGS);
+  const canManageN8NIntegration = () => hasPermission(PERMISSIONS.MANAGE_N8N_INTEGRATION);
   
-  return permissions;
+  // Verificações combinadas para WhatsApp/Templates
+  const hasWhatsAppAccess = () => canManageWhatsApp(userRole);
+  const hasTemplateAccess = () => canManageTemplates(userRole);
+
+  // Verificações de Relatórios e Dashboard
+  const canViewReports = () => hasPermission(PERMISSIONS.VIEW_REPORTS);
+  const canViewDashboard = () => hasPermission(PERMISSIONS.VIEW_DASHBOARD);
+  const canExportData = () => hasPermission(PERMISSIONS.EXPORT_DATA);
+
+  // Verificações de Configurações
+  const canViewSettings = () => hasPermission(PERMISSIONS.VIEW_SETTINGS);
+  const canEditSettings = () => hasPermission(PERMISSIONS.EDIT_SETTINGS);
+  const canManageSystem = () => hasPermission(PERMISSIONS.MANAGE_SYSTEM);
+
+  // === VERIFICAÇÕES DE COMPATIBILIDADE (SISTEMA LEGADO) ===
+  
+  // Mapeamento de compatibilidade com sistema antigo
+  const isLegacyCompatible = () => {
+    // Verificar se o usuário tem acesso usando o sistema antigo
+    if (!user) return false;
+    
+    // Se não tem role definido, assumir acesso básico
+    if (!userRole) {
+      console.warn('[usePermissions] Usuário sem role definido, assumindo acesso básico');
+      return true;
+    }
+    
+    return true;
+  };
+
+  // === LOGS E DEBUG ===
+  
+  // Função para debug de permissões
+  const debugPermissions = () => {
+    console.group(`[usePermissions] Debug - Usuário: ${user?.nome || user?.email || 'N/A'}`);
+    console.log('Role:', userRole);
+    console.log('É Admin:', isAdminUser());
+    console.log('Permissões:', permissions);
+    console.log('WhatsApp Access:', hasWhatsAppAccess());
+    console.log('Template Access:', hasTemplateAccess());
+    console.groupEnd();
+  };
+
+  // === RETURN DO HOOK ===
+  
+  return {
+    // Estado
+    isLoading,
+    isAuthenticated,
+    userRole,
+    permissions,
+    user,
+
+    // Funções principais
+    hasPermission,
+    hasAnyPermission,
+    hasAllPermissions,
+
+    // Admin e Usuários
+    isSuperAdmin,
+    isAdminUser,
+    canManageUsers,
+    canManageRoles,
+
+    // Agendamentos
+    canViewAppointments,
+    canCreateAppointments,
+    canEditAppointments,
+    canDeleteAppointments,
+    canViewAllAppointments,
+    canViewOwnAppointments,
+    canManageAppointmentStatus,
+
+    // Médicos
+    canViewDoctors,
+    canCreateDoctors,
+    canEditDoctors,
+    canDeleteDoctors,
+
+    // Cidades e Datas
+    canViewCities,
+    canCreateCities,
+    canEditCities,
+    canDeleteCities,
+    canViewDates,
+    canCreateDates,
+    canEditDates,
+    canDeleteDates,
+
+    // Clientes
+    canViewClients,
+    canCreateClients,
+    canEditClients,
+    canDeleteClients,
+
+    // Financeiro
+    canViewFinancial,
+    canCreateFinancial,
+    canEditFinancial,
+    canDeleteFinancial,
+    canViewFinancialReports,
+
+    // WhatsApp e Templates
+    canViewTemplates,
+    canCreateTemplates,
+    canEditTemplates,
+    canDeleteTemplates,
+    canSendWhatsApp,
+    canViewWhatsAppLogs,
+    canManageN8NIntegration,
+    hasWhatsAppAccess,
+    hasTemplateAccess,
+
+    // Relatórios e Dashboard
+    canViewReports,
+    canViewDashboard,
+    canExportData,
+
+    // Configurações
+    canViewSettings,
+    canEditSettings,
+    canManageSystem,
+
+    // Compatibilidade
+    isLegacyCompatible,
+
+    // Debug
+    debugPermissions,
+
+    // Constantes exportadas
+    PERMISSIONS,
+    ROLES
+  };
 };
+
+export default usePermissions;
 
 /**
  * Hook para verificar permissão específica
@@ -142,8 +294,8 @@ export const usePermissions = () => {
  * VERSÃO SEGURA
  */
 export const usePermission = (permission, fallbackValue = false) => {
-  const { canSafe } = usePermissions();
-  return canSafe(permission, fallbackValue);
+  const { hasPermission } = usePermissions();
+  return hasPermission(permission);
 };
 
 /**
@@ -152,10 +304,10 @@ export const usePermission = (permission, fallbackValue = false) => {
  * VERSÃO SEGURA
  */
 export const useAnyPermissions = (permissionsList, fallbackValue = false) => {
-  const { canAny } = usePermissions();
+  const { hasAnyPermission } = usePermissions();
   
   try {
-    return canAny(permissionsList);
+    return hasAnyPermission(permissionsList);
   } catch (error) {
     console.error('Erro no hook useAnyPermissions:', error);
     return fallbackValue;
