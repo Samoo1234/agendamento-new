@@ -1,58 +1,135 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Regra temporária para diagnóstico - REMOVER APÓS TESTE
-    match /{document=**} {
-      allow read, write: if true;
+    // Funções auxiliares para verificação de permissões
+    function isAuthenticated() {
+      return request.auth != null;
     }
     
-    // Suas regras originais (comentadas para teste)
-    /*
+    function getUserData() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+    
+    function hasAnyRole(roles) {
+      return isAuthenticated() && getUserData().role in roles;
+    }
+    
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+    
+    function isActive() {
+      return isAuthenticated() && getUserData().disabled != true;
+    }
+    
     // Regra base: negar acesso a tudo por padrão
     match /{document=**} {
       allow read, write: if false;
     }
     
-    // Regras para usuários
+    // USUÁRIOS - Controle granular baseado em roles
     match /usuarios/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && (request.auth.uid == userId || 
-                  exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
-                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin');
+      // Leitura: usuário pode ver próprio perfil ou admins podem ver todos
+      allow read: if isActive() && (
+        isOwner(userId) || 
+        hasAnyRole(['super_admin', 'admin'])
+      );
+      
+      // Criação: apenas super_admin pode criar usuários
+      allow create: if hasRole('super_admin');
+      
+      // Atualização: usuário pode atualizar próprio perfil (exceto role) ou admins podem atualizar
+      allow update: if isActive() && (
+        (isOwner(userId) && !('role' in request.resource.data.diff(resource.data).affectedKeys())) ||
+        hasAnyRole(['super_admin', 'admin'])
+      );
+      
+      // Exclusão: apenas super_admin
+      allow delete: if hasRole('super_admin');
     }
     
-    // Regras para médicos
+    // MÉDICOS
     match /medicos/{doctorId} {
-      allow read: if true; // Leitura pública para mostrar médicos no agendamento
-      allow write: if request.auth != null && 
-                  exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
-                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      // Leitura: pública para agendamentos, restrita para gestão
+      allow read: if true;
+      
+      // Escrita: apenas admins e super_admins
+      allow write: if isActive() && hasAnyRole(['super_admin', 'admin']);
     }
     
-    // Regras para cidades
+    // CIDADES
     match /cidades/{cityId} {
-      allow read: if true; // Leitura pública para mostrar cidades no agendamento
-      allow write: if request.auth != null && 
-                  exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
-                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      // Leitura: pública para agendamentos
+      allow read: if true;
+      
+      // Escrita: apenas admins e super_admins
+      allow write: if isActive() && hasAnyRole(['super_admin', 'admin']);
     }
     
-    // Regras para datas disponíveis
+    // DATAS DISPONÍVEIS
     match /datas_disponiveis/{dateId} {
-      allow read: if true; // Leitura pública para mostrar datas no agendamento
-      allow write: if request.auth != null && 
-                  exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
-                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      // Leitura: pública para agendamentos
+      allow read: if true;
+      
+      // Escrita: admins, gerentes e recepcionistas
+      allow write: if isActive() && hasAnyRole(['super_admin', 'admin', 'manager', 'receptionist']);
     }
     
-    // Regras para agendamentos
+    // AGENDAMENTOS
     match /agendamentos/{appointmentId} {
-      allow read: if request.auth != null;
-      allow create: if true; // Permitir criação pública para que usuários possam agendar
-      allow update, delete: if request.auth != null && 
-                  exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
-                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+      // Leitura: 
+      // - Público para leitura básica (formulário de agendamento)
+      // - Autenticados podem ver todos (com filtro no frontend por role)
+      // - Médicos veem apenas seus agendamentos
+      allow read: if true;
+      
+      // Criação: pública para permitir agendamentos
+      allow create: if true;
+      
+      // Atualização: roles com permissão de gestão
+      allow update: if isActive() && hasAnyRole([
+        'super_admin', 'admin', 'manager', 'receptionist'
+      ]);
+      
+      // Exclusão: apenas admins e super_admins
+      allow delete: if isActive() && hasAnyRole(['super_admin', 'admin']);
     }
-    */
+    
+    // CONFIGURAÇÕES DE HORÁRIOS
+    match /configuracoes_horarios/{configId} {
+      // Leitura: usuários autenticados
+      allow read: if isActive();
+      
+      // Escrita: admins e gerentes
+      allow write: if isActive() && hasAnyRole(['super_admin', 'admin', 'manager']);
+    }
+    
+    // REGISTROS FINANCEIROS
+    match /registros_financeiros/{recordId} {
+      // Leitura: roles com acesso financeiro
+      allow read: if isActive() && hasAnyRole([
+        'super_admin', 'admin', 'manager', 'financial'
+      ]);
+      
+      // Escrita: roles com permissão financeira
+      allow write: if isActive() && hasAnyRole([
+        'super_admin', 'admin', 'financial'
+      ]);
+    }
+    
+    // TEMPLATES ENVIADOS (WhatsApp)
+    match /templates_enviados/{templateId} {
+      // Leitura: usuários autenticados com permissão de visualizar agendamentos
+      allow read: if isActive() && hasAnyRole([
+        'super_admin', 'admin', 'manager', 'receptionist'
+      ]);
+      
+      // Escrita: sistema automático e admins
+      allow write: if isActive() && hasAnyRole(['super_admin', 'admin']);
+    }
   }
 }

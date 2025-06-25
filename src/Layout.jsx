@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate, Outlet, Link as RouterLink, useLocation } from 'react-router-dom';
 import useStore from './store/useStore';
+import { usePermissions } from './hooks/usePermissions';
+import { PERMISSIONS } from './config/permissions';
 import { Toaster } from 'react-hot-toast';
 import { AiOutlineDashboard, AiOutlineCalendar, AiOutlineUser, AiOutlineTeam, AiOutlineLogout, AiOutlineMenu, AiOutlineClose, AiOutlineSetting, AiOutlineHistory } from 'react-icons/ai';
 import { BiBuilding } from 'react-icons/bi';
@@ -29,6 +31,21 @@ const Navbar = styled.div`
   justify-content: space-between;
   padding: 0 20px;
   z-index: 100;
+`;
+
+const UserInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+
+  .role-badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+  }
 `;
 
 const MenuButton = styled.button`
@@ -127,23 +144,68 @@ const MenuLink = styled(RouterLink)`
 function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, logout } = useStore();
+  const { isAuthenticated, logout, user } = useStore();
+  const { can, getRole } = usePermissions();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  const menuItems = [
-    { icon: <AiOutlineDashboard />, text: 'Dashboard', path: '/dashboard' },
-    { icon: <AiOutlineCalendar />, text: 'Datas Disponíveis', path: '/datas-disponiveis' },
-    { icon: <AiOutlineUser />, text: 'Médicos', path: '/medicos' },
-    { icon: <BiBuilding />, text: 'Cidades', path: '/cidades' },
-    { icon: <AiOutlineTeam />, text: 'Clientes', path: '/clientes' },
-    { icon: <FaMoneyBillWave />, text: 'Financeiro', path: '/financeiro', alwaysShow: true },
-    { icon: <AiOutlineHistory />, text: 'Histórico', path: '/historico' },
-    { icon: <AiOutlineSetting />, text: 'Gerenciar Usuários', path: '/gerenciar-usuarios' }
+  // Menu items com suas respectivas permissões
+  const allMenuItems = [
+    { 
+      icon: <AiOutlineDashboard />, 
+      text: 'Dashboard', 
+      path: '/dashboard',
+      permission: PERMISSIONS.DASHBOARD_VIEW
+    },
+    { 
+      icon: <AiOutlineCalendar />, 
+      text: 'Datas Disponíveis', 
+      path: '/datas-disponiveis',
+      permission: PERMISSIONS.DATES_VIEW
+    },
+    { 
+      icon: <AiOutlineUser />, 
+      text: 'Médicos', 
+      path: '/medicos',
+      permission: PERMISSIONS.DOCTORS_VIEW
+    },
+    { 
+      icon: <BiBuilding />, 
+      text: 'Cidades', 
+      path: '/cidades',
+      permission: PERMISSIONS.CITIES_VIEW
+    },
+    { 
+      icon: <AiOutlineTeam />, 
+      text: 'Clientes', 
+      path: '/clientes',
+      permission: PERMISSIONS.APPOINTMENTS_VIEW_ALL
+    },
+    { 
+      icon: <FaMoneyBillWave />, 
+      text: 'Financeiro', 
+      path: '/financeiro',
+      permission: PERMISSIONS.FINANCIAL_VIEW
+    },
+    { 
+      icon: <AiOutlineHistory />, 
+      text: 'Histórico', 
+      path: '/historico',
+      permission: PERMISSIONS.APPOINTMENTS_VIEW_ALL
+    },
+    { 
+      icon: <AiOutlineSetting />, 
+      text: 'Gerenciar Usuários', 
+      path: '/gerenciar-usuarios',
+      permission: PERMISSIONS.USERS_VIEW
+    }
   ];
+
+  // Filtrar menu items baseado nas permissões do usuário
+  const menuItems = allMenuItems.filter(item => can(item.permission));
 
   // Verificar se estamos em ambiente de produção
   const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1');
@@ -164,6 +226,13 @@ function Layout() {
           </MenuButton>
           <span>Sistema de Agendamento</span>
         </div>
+        
+        {user && (
+          <UserInfo>
+            <span>{user.email}</span>
+            <span className="role-badge">{getRole()}</span>
+          </UserInfo>
+        )}
       </Navbar>
 
       {sidebarOpen && (
@@ -178,7 +247,6 @@ function Layout() {
             key={index}
             onClick={() => navigate(item.path)}
             className={location.pathname === item.path ? 'active' : ''}
-            style={{ display: item.alwaysShow ? 'flex' : undefined }}
           >
             {item.icon}
             {item.text}

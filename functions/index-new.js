@@ -65,7 +65,6 @@ exports.notifyAppointment = functions.firestore
   .document('agendamentos/{appointmentId}')
   .onCreate(async (snapshot, context) => {
     console.log('Função notifyAppointment acionada para o documento:', context.params.appointmentId);
-    console.log('Dados completos do snapshot:', JSON.stringify(snapshot.data()));
     
     try {
       const appointmentData = snapshot.data();
@@ -80,7 +79,7 @@ exports.notifyAppointment = functions.firestore
       }
       
       // Formatar número de telefone (remover caracteres não numéricos)
-      const phoneDigits = telefone.replace(/\D/g, '');
+      const phoneDigits = telefone.replace(/\\D/g, '');
       console.log('Dígitos do telefone após remoção de caracteres não numéricos:', phoneDigits);
       
       // Verificar se o número tem o formato correto (10 ou 11 dígitos)
@@ -113,7 +112,6 @@ exports.notifyAppointment = functions.firestore
                         'https://webhook.samtecsolucoes.com.br/webhook/template';
       
       console.log('URL do webhook:', webhookUrl);
-      console.log('Dados completos sendo enviados:', JSON.stringify(webhookData, null, 2));
       
       // Enviar dados para o webhook do n8n
       try {
@@ -121,7 +119,6 @@ exports.notifyAppointment = functions.firestore
         console.log('Dados sendo enviados:', JSON.stringify(webhookData, null, 2));
         console.log('URL do webhook:', webhookUrl);
         
-        console.log('Iniciando requisição fetch para:', webhookUrl);
         const response = await fetch(webhookUrl, {
           method: 'POST',
           headers: {
@@ -139,7 +136,6 @@ exports.notifyAppointment = functions.firestore
         
         const responseData = await response.json();
         console.log('Resposta do webhook:', JSON.stringify(responseData, null, 2));
-        console.log('Resposta completa do webhook - status:', response.status, response.statusText);
         
         // Atualizar o documento do agendamento com a confirmação de envio
         await snapshot.ref.update({
