@@ -392,8 +392,6 @@ const PERMISSION_GROUPS = {
   }
 };
 
-
-
 const GerenciarUsuarios = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -417,16 +415,16 @@ const GerenciarUsuarios = () => {
   const fetchUsers = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'usuarios'));
-      console.log('Documentos encontrados:', querySnapshot.size);
+
       const usersData = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('Dados do usuário:', data);
+
         return {
           id: doc.id,
           ...data
         };
       });
-      console.log('Dados processados:', usersData);
+
       setUsers(usersData);
     } catch (error) {
       toast.error('Erro ao carregar usuários');
@@ -469,7 +467,7 @@ const GerenciarUsuarios = () => {
           try {
             // Nota: Isso só funciona se o usuário atual for admin e tiver as permissões adequadas
             // Para funcionar completamente, seria necessário usar Firebase Admin SDK
-            console.log(`Usuário ${userEmail} removido da coleção. Para remover do Authentication, acesse o Firebase Console.`);
+
             toast.success(`Usuário excluído da coleção! Para completar, remova ${userEmail} do Firebase Authentication no console.`);
           } catch (authError) {
             console.warn('Não foi possível remover do Authentication automaticamente:', authError);
@@ -515,8 +513,6 @@ const GerenciarUsuarios = () => {
     setPermissionsUserId(null);
     setCustomPermissions([]);
   };
-
-
 
   const handlePermissionToggle = (permission) => {
     setCustomPermissions(prev => {
@@ -601,9 +597,7 @@ const GerenciarUsuarios = () => {
       } else {
         // Criar novo usuário
         try {
-          console.log('Iniciando criação de usuário com:', formData.email);
-          console.log('Usando configuração Firebase:', auth.app.options);
-          
+
           const userCredential = await createUserWithEmailAndPassword(
             auth,
             formData.email,

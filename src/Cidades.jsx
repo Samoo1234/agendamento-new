@@ -98,11 +98,11 @@ const Cidades = () => {
   useEffect(() => {
     fetchCities().then(() => {
       // Log mais detalhado para ver a estrutura exata dos objetos
-      console.log('Dados das cidades (detalhado):', JSON.stringify(cities, null, 2));
+
       // Verificar cada objeto individualmente
       cities.forEach((city, index) => {
-        console.log(`Cidade ${index}:`, city);
-        console.log(`Propriedades da cidade ${index}:`, Object.keys(city));
+
+
       });
     });
   }, [fetchCities]);
@@ -135,7 +135,7 @@ const Cidades = () => {
   const handleEdit = (city) => {
     setEditingId(city.id);
     setNomeCidade(city.name || city.nome || '');
-    console.log('Editando cidade:', city);
+
   };
 
   const handleDelete = async (id) => {

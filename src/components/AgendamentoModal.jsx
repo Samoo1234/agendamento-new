@@ -163,7 +163,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
     const loadAllData = async () => {
       setIsLoading(true);
       try {
-        console.log("Iniciando carregamento de dados no AgendamentoModal");
+
         
         // Carregar dados em paralelo para melhor performance
         await Promise.all([
@@ -172,8 +172,8 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
           fetchAvailableDates()
         ]);
         
-        console.log("Cidades carregadas:", cities);
-        console.log("Datas disponíveis carregadas:", availableDates);
+
+
       } catch (error) {
         console.error("Erro ao carregar dados iniciais:", error);
         toast.error("Erro ao carregar dados. Por favor, recarregue a página.");
@@ -265,7 +265,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
       if (Array.isArray(scheduleConfigs)) {
         const scheduleConfig = scheduleConfigs.find(config => config.cityId === selectedCity);
         if (scheduleConfig) {
-          console.log('Usando configuração específica para a cidade:', scheduleConfig);
+
           cityConfig.periodoManha = scheduleConfig.periodoManha;
           cityConfig.periodoTarde = scheduleConfig.periodoTarde;
           
@@ -282,7 +282,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
       } else if (scheduleConfigs && scheduleConfigs[selectedCity]) {
         // Se scheduleConfigs for um objeto com chaves de cityId
         const scheduleConfig = scheduleConfigs[selectedCity];
-        console.log('Usando configuração específica para a cidade (objeto):', scheduleConfig);
+
         cityConfig.periodoManha = scheduleConfig.periodoManha;
         cityConfig.periodoTarde = scheduleConfig.periodoTarde;
         
@@ -297,7 +297,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
         cityConfig.intervalo = scheduleConfig.intervalo || cityConfig.intervalo;
       }
       
-      console.log('Configuração de horários usada:', cityConfig);
+
       
       // Gerar todos os horários possíveis
       const slots = [];
@@ -315,14 +315,14 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
         let currentHours = startHours;
         let currentMinutes = startMinutes;
         
-        console.log(`Gerando horários de ${start} até ${end} com intervalo de ${interval} minutos`);
+
         
         while (
           currentHours < endHours || 
           (currentHours === endHours && currentMinutes < endMinutes)
         ) {
           const timeStr = formatTime(currentHours, currentMinutes);
-          console.log(`Adicionando horário: ${timeStr}`);
+
           slots.push(timeStr);
           
           // Avançar para o próximo horário
@@ -341,8 +341,8 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
         addTimeSlots(cityConfig.horarios.tardeInicio, cityConfig.horarios.tardeFim, cityConfig.intervalo);
       }
       
-      console.log(`Total de slots gerados: ${slots.length}`);
-      console.log('Slots:', slots);
+
+
       
       // Buscar horários já agendados e filtrar da lista
       const fetchBookedTimes = async () => {
@@ -353,7 +353,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
             const cityName = cityObj.name;
             const dateString = dateObj.data;
             
-            console.log(`Buscando horários agendados para: Cidade=${cityName}, Data=${dateString}`);
+
             
             // Consulta para buscar todos os agendamentos da mesma cidade e data
             const appointmentsRef = collection(db, 'agendamentos');
@@ -369,13 +369,13 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
               .filter(doc => doc.data().status !== 'cancelado')
               .map(doc => doc.data().horario);
             
-            console.log(`Horários já agendados: ${bookedTimes.join(', ') || 'Nenhum'}`);
+
             
             // Filtrar os horários disponíveis, removendo os já agendados
             const availableSlots = slots.filter(slot => !bookedTimes.includes(slot));
             
-            console.log(`Total de horários: ${slots.length}, Disponíveis: ${availableSlots.length}`);
-            console.log('Horários disponíveis:', availableSlots);
+
+
             
             // Ordenar os horários em ordem crescente
             const sortedSlots = [...availableSlots].sort((a, b) => {
@@ -388,7 +388,7 @@ function AgendamentoModal({ isOpen, onClose, onSuccess, appointmentToEdit }) {
               return getMinutos(a) - getMinutos(b);
             });
             
-            console.log('Horários ordenados:', sortedSlots);
+
             
             setAvailableTimes(sortedSlots);
           } else {

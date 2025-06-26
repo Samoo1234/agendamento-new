@@ -194,11 +194,11 @@ function DatasDisponiveis() {
       const cidadeId = formData.cidade;
       const medicoId = formData.medico;
       
-      console.log('Cidades disponíveis:', cities);
-      console.log('Médicos disponíveis:', doctors);
-      console.log('ID da cidade selecionada:', cidadeId);
-      console.log('ID do médico selecionado:', medicoId);
-      console.log('Formulário:', formData);
+
+
+
+
+
       
 
       
@@ -209,9 +209,9 @@ function DatasDisponiveis() {
       // Formatar manualmente para evitar problemas de timezone
       const dataFormatada = `${dia.toString().padStart(2, '0')}/${mes.toString().padStart(2, '0')}/${ano}`;
       
-      console.log('Data original:', formData.data);
-      console.log('Data formatada:', dataFormatada);
-      console.log('Componentes da data:', { ano, mes, dia });
+
+
+
       
       // Buscar documentos diretamente do Firestore usando os IDs
       const cidadeDoc = await firebaseService.getCityById(cidadeId);

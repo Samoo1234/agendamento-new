@@ -133,13 +133,12 @@ const GerenciarClientes = () => {
 
   const fetchAgendamentos = async () => {
     try {
-      console.log('Buscando agendamentos ativos (data atual e futura)...');
+
       setLoading(true);
       
       // Usar a nova função que busca apenas agendamentos ativos
       const agendamentosData = await firebaseService.getActiveAppointments();
-      
-      console.log(`Encontrados ${agendamentosData.length} agendamentos ativos`);
+
       setAgendamentos(agendamentosData);
       
       // Após atualizar os agendamentos, o contador será recalculado automaticamente
@@ -160,7 +159,7 @@ const GerenciarClientes = () => {
   // Buscar agendamentos novamente quando o contador de atualizações mudar
   useEffect(() => {
     if (appointmentUpdateCounter > 0) {
-      console.log(`Contador de atualizações alterado: ${appointmentUpdateCounter}, buscando agendamentos...`);
+
       fetchAgendamentos();
     }
   }, [appointmentUpdateCounter]);
@@ -173,7 +172,6 @@ const GerenciarClientes = () => {
   )].sort();
 
   // Log para depuração - Datas disponíveis
-  console.log('Datas disponíveis:', datasDisponiveis);
 
   // Selecionar automaticamente a primeira cidade quando os dados são carregados
   useEffect(() => {
@@ -210,27 +208,15 @@ const GerenciarClientes = () => {
     
     // Log para depuração - Verificação de correspondência para data 15/04/2025
     if (dataFiltro === '15/04/2025' || dataFiltro === '15/04/2025 ') {
-      console.log('Verificando agendamento:', {
-        id: agendamento.id,
-        cidade: agendamento.cidade,
-        cidadeFiltro,
-        matchCidade,
-        data: agendamento.data,
-        dataFiltro,
-        matchData,
-        status: agendamento.status,
-        statusFiltro,
-        matchStatus
-      });
-    }
+      }
     
     return matchCidade && matchData && matchStatus;
   });
 
   // Log para depuração - Total de agendamentos filtrados
-  console.log('Total de agendamentos filtrados:', agendamentosFiltrados.length);
+
   if (dataFiltro === '15/04/2025') {
-    console.log('Agendamentos para 15/04/2025:', agendamentosFiltrados);
+
   }
 
   // Função para converter horário no formato HH:MM para minutos
@@ -460,13 +446,12 @@ const GerenciarClientes = () => {
         <Select 
           value={dataFiltro} 
           onChange={(e) => {
-            console.log('Alterando data para:', e.target.value);
-            console.log('Valor anterior:', dataFiltro);
+
             setDataFiltro(e.target.value);
           }}
         >
           {datasDisponiveis.map(data => {
-            console.log('Renderizando opção de data:', data);
+
             return (
               <option key={data} value={data}>{data}</option>
             );

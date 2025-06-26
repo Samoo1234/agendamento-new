@@ -239,13 +239,10 @@ const HistoricoAgendamentos = () => {
       if (searchTerm) {
         filters.searchTerm = searchTerm;
       }
-      
-      console.log('Enviando filtros para API:', filters);
-      
+
       // Buscar agendamentos históricos
       const result = await getHistoricalAppointments(filters);
-      console.log('Resultado da busca:', result);
-      
+
       if (result && Array.isArray(result)) {
         // Transformar os dados para garantir consistência
         const formattedAppointments = result.map(appointment => ({
@@ -289,8 +286,7 @@ const HistoricoAgendamentos = () => {
     try {
       // Usar diretamente o firebaseService importado no topo do arquivo
       const citiesFromFirebase = await firebaseService.getCities();
-      console.log('Cidades do Firebase (raw):', citiesFromFirebase);
-      
+
       // Garantir que temos um array de objetos com id e nome
       if (citiesFromFirebase && Array.isArray(citiesFromFirebase)) {
         // Processar as cidades para garantir que tenham o formato correto
@@ -298,20 +294,15 @@ const HistoricoAgendamentos = () => {
           id: city.id,
           nome: city.nome || city.name || '',
         }));
-        
-        console.log('Cidades processadas:', processedCities);
+
         setCidades(processedCities);
         
         // Buscar um agendamento de exemplo para verificar o formato do ID da cidade
         const sampleAppointments = await firebaseService.getAppointments();
         if (sampleAppointments && sampleAppointments.length > 0) {
-          console.log('Exemplo de agendamento para verificar ID da cidade:', 
-            sampleAppointments[0].cidade, 
-            'Tipo:', typeof sampleAppointments[0].cidade);
-          
           // Verificar se o ID da cidade no agendamento corresponde a alguma cidade na lista
           const matchingCity = processedCities.find(c => c.id === sampleAppointments[0].cidade);
-          console.log('Cidade correspondente encontrada?', matchingCity ? 'Sim' : 'Não');
+
         }
       } else {
         console.error('Dados de cidades inválidos:', citiesFromFirebase);
@@ -336,11 +327,11 @@ const HistoricoAgendamentos = () => {
 
   // Função para aplicar filtros
   const applyFilters = () => {
-    console.log('Aplicando filtros com cidade ID:', cidadeFiltro);
+
     // Verificar se a cidade selecionada existe na lista de cidades
     if (cidadeFiltro) {
       const cidadeSelecionada = cidades.find(c => c.id === cidadeFiltro);
-      console.log('Cidade selecionada:', cidadeSelecionada);
+
     }
     loadHistoricalAppointments();
   };
@@ -554,7 +545,7 @@ const HistoricoAgendamentos = () => {
               <option disabled>Carregando cidades...</option>
             ) : (
               cidades.map((cidade, index) => {
-                console.log('Renderizando cidade:', cidade);
+
                 return (
                   <option key={cidade.id || index} value={cidade.id || ''}>
                     {cidade.nome || (cidade.name ? cidade.name : 'Cidade ' + (index + 1))}

@@ -12,7 +12,7 @@ const Container = styled.div`
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: white;
+  background-color: #f8f9fa;
   position: relative;
   overflow-x: hidden; /* Prevenir scroll horizontal */
 `;
@@ -21,25 +21,31 @@ const LoginButton = styled.button`
   position: absolute;
   top: 20px;
   right: 20px;
-  background: none;
+  background-color: #000033;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 5px;
-  color: #000033;
+  color: white;
   font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 51, 0.2);
   
-  /* Estilo para dispositivos móveis */
+  &:hover {
+    background-color: #000066;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 51, 0.3);
+  }
+  
   @media (max-width: 768px) {
-    background-color: #000080;
-    color: white;
+    top: 15px;
+    right: 15px;
     padding: 8px 12px;
-    border-radius: 4px;
-    top: 10px;
-    right: 10px;
-    font-weight: 500;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-size: 13px;
   }
 `;
 
@@ -59,33 +65,38 @@ const Header = styled.div`
 `;
 
 const LogoContainer = styled.div`
-  width: 100%;
-  height: 200px;
+  width: 400px;
+  height: 120px;
   background-image: url(${LogoImage});
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  margin: 10px;
-  background-color: #000033;
-  border-radius: 4px;
-  padding: 20px;
+  margin: 20px auto;
+  background-color: transparent;
+  padding: 0;
   
   @media (max-width: 480px) {
-    height: 150px;
-    margin: 10px;
-    padding: 10px;
+    width: calc(100% - 20px);
+    height: 100px;
+    margin: 15px auto;
   }
 `;
 
 const FormContainer = styled.div`
   max-width: 400px;
-  margin: 0 auto;
-  padding: 20px;
+  margin: 10px auto 0 auto;
+  padding: 30px;
   width: 100%;
+  background-color: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  position: relative;
   
   @media (max-width: 480px) {
-    padding: 15px;
+    padding: 20px;
     max-width: 100%;
+    margin: 10px;
+    border-radius: 12px;
   }
 `;
 
@@ -255,8 +266,7 @@ function AgendamentoForm() {
     const loadAllData = async () => {
       setIsLoading(true);
       try {
-        console.log("Iniciando carregamento de dados no AgendamentoForm");
-        
+
         // Carregar dados em paralelo para melhor performance
         await Promise.all([
           fetchScheduleConfigs(),
@@ -281,9 +291,7 @@ function AgendamentoForm() {
             toast.error("Erro ao carregar dados do agendamento.");
           }
         }
-        
-        console.log("Cidades carregadas:", cities);
-        console.log("Datas disponíveis carregadas:", availableDates);
+
       } catch (error) {
         console.error("Erro ao carregar dados iniciais:", error);
         toast.error("Erro ao carregar dados. Por favor, recarregue a página.");
@@ -295,15 +303,14 @@ function AgendamentoForm() {
     loadAllData();
   }, [fetchScheduleConfigs, fetchCities, fetchAvailableDates]);
 
-  useEffect(() => {
+  // useEffect(() => {
     // Carregar todas as configurações necessárias quando o componente montar
     // fetchScheduleConfigs();
     // fetchCities();
     // fetchAvailableDates();
     
     // Adicionar logs para depuração
-    // console.log("Iniciando carregamento de dados no AgendamentoForm");
-  }, []);
+    // }, []);
 
   useEffect(() => {
     if (selectedCity && selectedDate) {
@@ -323,15 +330,13 @@ function AgendamentoForm() {
           
           let currentHours = startHours;
           let currentMinutes = startMinutes;
-          
-          console.log(`[AgendamentoForm] Gerando horários de ${start} até ${end} com intervalo de ${interval} minutos`);
-          
+
           while (
             currentHours < endHours || 
             (currentHours === endHours && currentMinutes < endMinutes)
           ) {
             const timeStr = formatTime(currentHours, currentMinutes);
-            console.log(`[AgendamentoForm] Adicionando horário: ${timeStr}`);
+
             slots.push(timeStr);
             
             // Avançar para o próximo horário
@@ -352,16 +357,13 @@ function AgendamentoForm() {
         };
 
         if (cityConfig.periodoManha) {
-          console.log(`[AgendamentoForm] Configuração período manhã:`, horarios.manhaInicio, horarios.manhaFim);
+
           addTimeSlots(horarios.manhaInicio, horarios.manhaFim, cityConfig.intervalo);
         }
         if (cityConfig.periodoTarde) {
-          console.log(`[AgendamentoForm] Configuração período tarde:`, horarios.tardeInicio, horarios.tardeFim);
+
           addTimeSlots(horarios.tardeInicio, horarios.tardeFim, cityConfig.intervalo);
         }
-
-        console.log(`[AgendamentoForm] Total de slots gerados: ${slots.length}`);
-        console.log('[AgendamentoForm] Slots:', slots);
 
         // Buscar horários já agendados e filtrar da lista
         const fetchBookedTimes = async () => {
@@ -373,19 +375,13 @@ function AgendamentoForm() {
             if (cityDoc && dateDoc) {
               const cityName = cityDoc.name || cityDoc.nome;
               const dateString = dateDoc.data;
-              
-              console.log(`[AgendamentoForm] Buscando horários agendados para: Cidade=${cityName}, Data=${dateString}`);
-              
+
               // Buscar horários já agendados
               const bookedTimes = await firebaseService.getBookedTimes(cityName, dateString);
-              
-              console.log(`[AgendamentoForm] Horários já agendados: ${bookedTimes.join(', ') || 'Nenhum'}`);
-              
+
               // Filtrar os horários disponíveis, removendo os já agendados
               const availableSlots = slots.filter(slot => !bookedTimes.includes(slot));
-              
-              console.log(`[AgendamentoForm] Total de horários: ${slots.length}, Disponíveis: ${availableSlots.length}`);
-              console.log('[AgendamentoForm] Horários disponíveis:', availableSlots);
+
               setAvailableTimes(availableSlots);
             } else {
               setAvailableTimes(slots);
@@ -492,25 +488,16 @@ function AgendamentoForm() {
           observacoes: additionalInfo || '',
           atualizadoEm: new Date().toISOString()
         };
-        
-        console.log('Atualizando agendamento:', appointmentId, appointmentData);
+
         await firebaseService.updateAppointment(appointmentId, appointmentData);
         toast.success('Agendamento atualizado com sucesso!');
       } else {
         // Se for um novo agendamento
-        console.log('Tentando agendar consulta com os seguintes dados:');
-        console.log('Cidades disponíveis:', cities);
-        console.log('Datas disponíveis:', availableDates);
-        console.log('ID da cidade selecionada:', selectedCity);
-        console.log('ID da data selecionada:', selectedDate);
-        
+
         // Buscar cidade e data diretamente do Firestore usando os IDs
         const cityDoc = await firebaseService.getCityById(selectedCity);
         const dateDoc = await firebaseService.getAvailableDateById(selectedDate);
-        
-        console.log('Documento da cidade:', cityDoc);
-        console.log('Documento da data:', dateDoc);
-        
+
         if (!cityDoc || !dateDoc) {
           throw new Error('Cidade ou data não encontrada');
         }
@@ -527,9 +514,7 @@ function AgendamentoForm() {
           status: 'pendente',
           criadoEm: new Date().toISOString()
         };
-        
-        console.log('Dados do agendamento:', appointmentData);
-        
+
         await createAppointment(appointmentData);
         toast.success('Consulta agendada com sucesso! Aguarde a confirmação via WhatsApp.');
       }
@@ -664,8 +649,7 @@ function AgendamentoForm() {
               {availableDates
                 .filter(date => {
                   const selectedCityName = cities.find(c => c.id.toString() === selectedCity)?.name;
-                  console.log(`Filtrando data: ${JSON.stringify(date)}, Cidade selecionada: ${selectedCityName}`);
-                  
+
                   // Normalizar os nomes das cidades para comparação (remover acentos, converter para minúsculas)
                   const normalizeString = (str) => {
                     return str
@@ -679,9 +663,7 @@ function AgendamentoForm() {
                   // Verificar se a data é para a cidade selecionada e ainda está disponível
                   const matchesCity = normalizedDateCity === normalizedSelectedCity;
                   const isAvailable = date.status === 'Disponível';
-                  
-                  console.log(`Data ${date.data} - Cidade da data: ${normalizedDateCity}, Cidade selecionada: ${normalizedSelectedCity}, Corresponde: ${matchesCity}, Status: ${date.status}`);
-                  
+
                   return matchesCity && isAvailable;
                   // Nota: A verificação da data já foi feita na função getAvailableDates
                   // Então aqui só precisamos verificar o status que já foi atualizado

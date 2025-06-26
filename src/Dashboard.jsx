@@ -125,7 +125,7 @@ function Dashboard() {
     // Obter a data de hoje no formato DD/MM/YYYY
     const today = new Date();
     const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-    console.log('Data de hoje formatada:', todayFormatted);
+
     
     // Contagem de agendamentos por cidade
     const appointmentsByCity = {};
@@ -154,8 +154,8 @@ function Dashboard() {
     // Contador de agendamentos de hoje
     let todayAppointments = 0;
     
-    console.log('Total de agendamentos a processar:', appointments.length);
-    console.log('Data atual para comparação:', todayFormatted);
+
+
     
     // Processar cada agendamento
     appointments.forEach(appointment => {
@@ -194,14 +194,14 @@ function Dashboard() {
       if (appointment.data) {
         // Extrair a data do agendamento
         const dataAgendamento = appointment.data;
-        console.log(`Verificando agendamento: ${dataAgendamento} (data atual: ${todayFormatted})`);
+
         
         // Obter a data atual no formato correto (04/04/2025)
         const dataAtual = todayFormatted;
         
         // Verificar se a data do agendamento é igual à data atual
         if (dataAgendamento === dataAtual) {
-          console.log('✅ ENCONTRADO AGENDAMENTO DE HOJE:', appointment);
+
           todayAppointments++;
         }
         
@@ -217,7 +217,7 @@ function Dashboard() {
           if (diaAgendamento === diaAtual && 
               mesAgendamento === mesAtual && 
               anoAgendamento === anoAtual) {
-            console.log('✅ ENCONTRADO AGENDAMENTO DE HOJE (verificação por componentes)');
+
             // Não incrementamos aqui para evitar duplicação, só se não foi encontrado na verificação anterior
             if (dataAgendamento !== dataAtual) {
               todayAppointments++;
@@ -235,7 +235,7 @@ function Dashboard() {
       ? ((completedAppointments / appointments.length) * 100).toFixed(1)
       : 0;
     
-    console.log(`Total de agendamentos de hoje encontrados: ${todayAppointments}`);
+
     
     setDashboardData({
       totalAppointments: appointments.length,
@@ -309,7 +309,7 @@ function Dashboard() {
     try {
       await fetchCities();
       await fetchAppointments();
-      console.log('Dados atualizados com sucesso!');
+
     } catch (error) {
       console.error('Erro ao atualizar dados:', error);
     }

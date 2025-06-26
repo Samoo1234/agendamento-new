@@ -105,34 +105,31 @@ const Financeiro = () => {
   const [mapaCidadeDatas, setMapaCidadeDatas] = useState(new Map());
   const [pagamentosDivididos, setPagamentosDivididos] = useState({});
 
-
   // Carregar cidades e datas disponíveis
   useEffect(() => {
     const carregarDados = async () => {
       try {
         setIsLoading(true);
-        console.log('Carregando cidades e datas...');
-        
+
         // Carregar cidades usando o useStore
-        console.log('Tentando carregar cidades via useStore...');
+
         await fetchCities();
         
         // Log único das cidades (sem causar loop)
-        console.log('Cidades carregadas via useStore:', cities);
+
         if (cities && cities.length > 0) {
-          console.log(`Total de ${cities.length} cidades encontradas`);
+
         }
         
         // Carregar datas disponíveis diretamente do Firestore
-        console.log('Tentando carregar datas disponíveis...');
+
         try {
           const datasDisponiveisRef = collection(db, 'datas_disponiveis');
           const querySnapshot = await getDocs(datasDisponiveisRef);
           
           const todasDatas = querySnapshot.docs.map(doc => {
             const data = doc.data();
-            console.log(`Data documento ${doc.id}:`, data);
-            console.log(`Cidade da data: ${data.cidade}, Tipo: ${typeof data.cidade}`);
+
             return {
               id: doc.id,
               ...data,
@@ -140,8 +137,7 @@ const Financeiro = () => {
               cidade: data.cidade || ''
             };
           });
-          
-          console.log('Datas disponíveis carregadas diretamente do Firestore:', todasDatas);
+
           setDatas(todasDatas);
         } catch (datasError) {
           console.error('Erro específico ao carregar datas:', datasError);
@@ -168,30 +164,26 @@ const Financeiro = () => {
     // Encontrar a cidade selecionada pelo ID para obter o nome
     const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
     if (!cidadeSelecionadaObj) {
-      console.log(`Cidade com ID ${cidadeSelecionada} não encontrada na lista de cidades`);
+
       setDatasFiltradasPorCidade([]);
       return;
     }
     
     const nomeCidadeSelecionada = cidadeSelecionadaObj.name;
-    console.log(`Filtrando datas para a cidade: ${nomeCidadeSelecionada} (ID: ${cidadeSelecionada})`);
-    
+
     // Filtrar datas que correspondem à cidade selecionada pelo nome
     const datasFiltradas = datas.filter(data => {
       // A cidade pode estar armazenada como nome (string)
       const nomeCidade = data.cidade;
-      
-      console.log(`Comparando: cidade da data="${nomeCidade}" com cidade selecionada="${nomeCidadeSelecionada}"`);
-      
+
       // Verificar se o nome da cidade da data corresponde ao nome da cidade selecionada
       const cidadeCorresponde = nomeCidade === nomeCidadeSelecionada;
       if (cidadeCorresponde) {
-        console.log(`Data correspondente encontrada: ${data.data} para cidade ${nomeCidadeSelecionada}`);
+
       }
       return cidadeCorresponde;
     });
-    
-    console.log(`Total de ${datasFiltradas.length} datas encontradas para a cidade ${nomeCidadeSelecionada}`);
+
     setDatasFiltradasPorCidade(datasFiltradas);
   }, [cidadeSelecionada, datas, cities]);
 
@@ -200,12 +192,10 @@ const Financeiro = () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      console.log(`Buscando dados para cidade ${cidadeSelecionada} e data ${dataSelecionada}`);
-      
+
       // Verificar se temos cidade e data selecionadas
       if (!cidadeSelecionada || !dataSelecionada) {
-        console.log('Cidade ou data não selecionada, não buscando dados');
+
         setIsLoading(false);
         return;
       }
@@ -219,8 +209,7 @@ const Financeiro = () => {
       }
       
       // Buscar registros financeiros para a cidade e data selecionadas
-      console.log(`Buscando registros para cidade ID: ${cidadeSelecionada} e data ID: ${dataSelecionada}`);
-      
+
       // Criar query para buscar registros financeiros
       const q = query(
         collection(db, 'registros_financeiros'),
@@ -229,8 +218,7 @@ const Financeiro = () => {
       );
       
       const querySnapshot = await getDocs(q);
-      console.log(`Encontrados ${querySnapshot.size} registros`);
-      
+
       // Processar resultados
       const registros = [];
       querySnapshot.forEach((doc) => {
@@ -263,8 +251,7 @@ const Financeiro = () => {
       }));
       
       // Buscar agendamentos para a mesma cidade e data
-      console.log('Buscando agendamentos para a mesma cidade e data');
-      
+
       // Obter o nome da cidade a partir do ID
       const cidadeObj = cities.find(city => city.id === cidadeSelecionada);
       if (!cidadeObj) {
@@ -275,8 +262,7 @@ const Financeiro = () => {
       
       // Obter a data formatada
       const dataFormatada = dataObj.data;
-      console.log(`Buscando agendamentos para cidade: ${cidadeObj.name} e data: ${dataFormatada}`);
-      
+
       // Criar query para buscar agendamentos usando o nome da cidade e a data formatada
       const qAgendamentos = query(
         collection(db, 'agendamentos'),
@@ -285,26 +271,22 @@ const Financeiro = () => {
       );
       
       const agendamentosSnapshot = await getDocs(qAgendamentos);
-      console.log(`Encontrados ${agendamentosSnapshot.size} agendamentos`);
-      
+
       // Processar agendamentos
       const agendamentosData = [];
       const registrosDeAgendamentos = [...registros]; // Cópia dos registros existentes
-      
-      console.log('Processando agendamentos encontrados:', agendamentosSnapshot.size);
-      
+
       agendamentosSnapshot.forEach((doc) => {
         const agendamento = {
           id: doc.id,
           ...doc.data()
         };
-        console.log('Agendamento encontrado:', agendamento);
+
         agendamentosData.push(agendamento);
         
         // Verificar se já existe um registro financeiro para este agendamento
         const registroExistente = registros.find(r => r.agendamentoId === agendamento.id);
-        console.log('Registro existente para agendamento?', registroExistente ? 'Sim' : 'Não');
-        
+
         // Se não existir, criar um novo registro financeiro a partir do agendamento
         if (!registroExistente) {
           const novoRegistroId = `novo_${agendamento.id}`;
@@ -318,9 +300,7 @@ const Financeiro = () => {
           } else if (agendamento.nome) {
             nomeCliente = agendamento.nome;
           }
-          
-          console.log('Nome do cliente encontrado:', nomeCliente);
-          
+
           const novoRegistro = {
             id: novoRegistroId,
             agendamentoId: agendamento.id,
@@ -335,16 +315,14 @@ const Financeiro = () => {
             cidadeId: cidadeSelecionada,
             dataId: dataSelecionada
           };
-          
-          console.log('Criando novo registro financeiro a partir do agendamento:', novoRegistro);
+
           registrosDeAgendamentos.push(novoRegistro);
           
           // Inicializar pagamentos divididos para este registro
           pagamentosTemp[novoRegistroId] = [{ formaPagamento: '', valor: agendamento.valor || '' }];
         }
       });
-      
-      console.log('Total de registros após processamento:', registrosDeAgendamentos.length);
+
       setAgendamentos(agendamentosData);
       setRegistrosFinanceiros(registrosDeAgendamentos);
       
@@ -362,13 +340,10 @@ const Financeiro = () => {
           0,
           0
         );
-        
-        console.log('Data formatada:', dataFormatada, 'String original:', dataObj.data);
-        
+
         // Formatar o dia da semana
         const diaSemanaFormatado = dataFormatada.toLocaleString('pt-BR', { weekday: 'long' });
-        console.log('Dia da semana formatado:', diaSemanaFormatado);
-        
+
         // Capitalizar a primeira letra
         const diaSemanaCapitalizado = diaSemanaFormatado.charAt(0).toUpperCase() + diaSemanaFormatado.slice(1);
         setDiaSemana(diaSemanaCapitalizado);
@@ -496,7 +471,7 @@ const Financeiro = () => {
   useEffect(() => {
     const buscarRegistros = async () => {
       if (cidadeSelecionada && dataSelecionada) {
-        console.log(`Cidade selecionada: ${cidadeSelecionada}, Data selecionada: ${dataSelecionada}`);
+
         buscarDados();
       }
     };
@@ -532,7 +507,7 @@ const Financeiro = () => {
   const handleChangeCidade = (e) => {
     try {
       const valor = e.target.value;
-      console.log('Cidade selecionada:', valor);
+
       setCidadeSelecionada(valor);
       setDataSelecionada('');
       setDiaSemana('');
@@ -546,14 +521,13 @@ const Financeiro = () => {
   const handleChangeData = (e) => {
     try {
       const valor = e.target.value;
-      console.log('Data selecionada:', valor);
+
       setDataSelecionada(valor);
       
       if (valor) {
         // Encontrar a data selecionada para obter o dia da semana
         const dataObj = datas.find(d => d.id === valor);
-        console.log('Objeto da data selecionada:', dataObj);
-        
+
         if (dataObj && dataObj.data) {
           try {
             // Converter a string de data para um objeto Date de forma segura
@@ -569,13 +543,10 @@ const Financeiro = () => {
               0,
               0
             );
-            
-            console.log('Data formatada:', dataFormatada, 'String original:', dataObj.data);
-            
+
             // Formatar o dia da semana
             const diaSemanaFormatado = dataFormatada.toLocaleString('pt-BR', { weekday: 'long' });
-            console.log('Dia da semana formatado:', diaSemanaFormatado);
-            
+
             // Capitalizar a primeira letra
             const diaSemanaCapitalizado = diaSemanaFormatado.charAt(0).toUpperCase() + diaSemanaFormatado.slice(1);
             setDiaSemana(diaSemanaCapitalizado);
@@ -620,8 +591,7 @@ const Financeiro = () => {
 
   const gerarPDF = () => {
     try {
-      console.log('Gerando PDF...');
-      
+
       // Verificar se há registros para gerar o PDF
       if (!registrosFinanceiros || registrosFinanceiros.length === 0) {
         alert('Não há registros financeiros para gerar o PDF.');
@@ -904,8 +874,7 @@ const Financeiro = () => {
       
       // Salvar PDF
       doc.save(`Relatorio_Financeiro_${nomeCidade}_${dataFormatada}.pdf`);
-      console.log('PDF gerado com sucesso!');
-      
+
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
       alert(`Erro ao gerar PDF: ${error.message}`);
@@ -942,8 +911,7 @@ const Financeiro = () => {
     // Obter o nome da cidade
     const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
     const nomeCidade = cidadeSelecionadaObj ? cidadeSelecionadaObj.name : 'Desconhecida';
-    
-    
+
     // Preparar as formas de pagamento
     const formasPagamento = pagamentosRegistro.map(p => ({
       formaPagamento: p.formaPagamento,
@@ -980,8 +948,7 @@ const Financeiro = () => {
           : r
       )
     );
-    
-    console.log('Registro atualizado com sucesso:', registroAtualizado);
+
     alert('Registro atualizado com sucesso!');
   } catch (error) {
     console.error('Erro ao atualizar registro:', error);
@@ -1011,15 +978,12 @@ const adicionarNovoRegistro = (agendamentoId, cliente, valor, id) => {
     // Adicionar o novo registro à lista de registros
     setRegistrosFinanceiros(prev => [...prev, novoRegistro]);
 
-
-    
     // Inicializar pagamentos divididos para este registro
     setPagamentosDivididos(prev => ({
       ...prev,
       [novoId]: [{ formaPagamento: '', valor: valor || '' }]
     }));
-    
-    console.log('Novo registro adicionado:', novoRegistro);
+
   } catch (error) {
     console.error('Erro ao adicionar novo registro:', error);
     alert(`Erro ao adicionar novo registro: ${error.message}`);
@@ -1056,8 +1020,7 @@ const salvarNovoRegistro = async (registro) => {
     // Obter o nome da cidade
     const cidadeSelecionadaObj = cities.find(city => city.id === cidadeSelecionada);
     const nomeCidade = cidadeSelecionadaObj ? cidadeSelecionadaObj.name : 'Desconhecida';
-    
-    
+
     // Preparar as formas de pagamento
     const formasPagamento = pagamentos.map(p => ({
       formaPagamento: p.formaPagamento,
@@ -1091,8 +1054,7 @@ const salvarNovoRegistro = async (registro) => {
     
     // Buscar dados atualizados
     buscarDados();
-    
-    console.log('Novo registro salvo com sucesso:', novoRegistro);
+
     alert('Registro salvo com sucesso!');
   } catch (error) {
     console.error('Erro ao salvar novo registro:', error);
@@ -1115,7 +1077,6 @@ const salvarNovoRegistro = async (registro) => {
     const registro = registrosFinanceiros.find(r => r.id === id);
     if (registro) {
 
-      
       // Inicializar pagamentos divididos
       if (!pagamentosDivididos[id]) {
         if (registro.formasPagamento && Array.isArray(registro.formasPagamento)) {
@@ -1133,8 +1094,7 @@ const salvarNovoRegistro = async (registro) => {
         }
       }
     }
-    
-    console.log(`Iniciando edição do registro ${id}`);
+
   };
   
   // Função para cancelar a edição de um registro
@@ -1147,8 +1107,7 @@ const salvarNovoRegistro = async (registro) => {
           : registro
       )
     );
-    
-    console.log(`Edição do registro ${id} cancelada`);
+
   };
   
   // Função para excluir um registro financeiro
@@ -1172,8 +1131,7 @@ const salvarNovoRegistro = async (registro) => {
         delete newState[id];
         return newState;
       });
-      
-      console.log(`Registro ${id} excluído com sucesso`);
+
       alert('Registro excluído com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir registro:', error);
@@ -1202,31 +1160,29 @@ const salvarNovoRegistro = async (registro) => {
   };
 
   const adicionarPagamento = (id) => {
-    console.log('Adicionando pagamento para registro:', id);
-    console.log('Estado atual dos pagamentos divididos:', pagamentosDivididos);
-    
+
     // Verificar se o ID existe no objeto pagamentosDivididos
     if (!pagamentosDivididos[id]) {
-      console.log('Inicializando pagamentos para o registro:', id);
+
       setPagamentosDivididos(prev => ({
         ...prev,
         [id]: [{ formaPagamento: '', valor: '' }]
       }));
     } else {
-      console.log('Adicionando novo pagamento ao registro existente:', id);
+
       setPagamentosDivididos(prev => {
         const novosPagamentos = {
           ...prev,
           [id]: [...prev[id], { formaPagamento: '', valor: '' }]
         };
-        console.log('Novos pagamentos após adição:', novosPagamentos);
+
         return novosPagamentos;
       });
     }
   };
 
   const removerPagamento = (id, index) => {
-    console.log('Removendo pagamento:', id, index);
+
     if (pagamentosDivididos[id] && pagamentosDivididos[id].length > 1) {
       setPagamentosDivididos(prev => ({
         ...prev,
@@ -1244,11 +1200,9 @@ const salvarNovoRegistro = async (registro) => {
   };
 
   const atualizarPagamento = (id, index, campo, valor) => {
-    console.log('Atualizando pagamento:', id, index, campo, valor);
-    console.log('Estado atual dos pagamentos divididos:', pagamentosDivididos);
-    
+
     if (!pagamentosDivididos[id]) {
-      console.log('Inicializando pagamentos para o registro:', id);
+
       setPagamentosDivididos(prev => ({
         ...prev,
         [id]: [{ formaPagamento: '', valor: '' }]
@@ -1260,7 +1214,7 @@ const salvarNovoRegistro = async (registro) => {
       const novosPagamentos = [...pagamentosDivididos[id]];
       
       if (!novosPagamentos[index]) {
-        console.log('Pagamento não encontrado no índice:', index);
+
         novosPagamentos[index] = { formaPagamento: '', valor: '' };
       }
       
@@ -1281,9 +1235,7 @@ const salvarNovoRegistro = async (registro) => {
           [campo]: valor
         };
       }
-      
-      console.log('Novos pagamentos após atualização:', novosPagamentos);
-      
+
       setPagamentosDivididos(prev => ({
         ...prev,
         [id]: novosPagamentos
@@ -1292,8 +1244,6 @@ const salvarNovoRegistro = async (registro) => {
       console.error('Erro ao atualizar pagamento:', error);
     }
   };
-
-
 
   // Função para formatar valor como moeda (R$ 0,00)
   const formatarValorMoeda = (valor) => {

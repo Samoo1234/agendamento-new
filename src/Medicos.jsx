@@ -150,10 +150,10 @@ function Medicos() {
   useEffect(() => {
     const loadDoctors = async () => {
       try {
-        console.log('Carregando médicos...');
+
         setIsLoading(true);
         await fetchDoctors();
-        console.log('Médicos carregados com sucesso!');
+
       } catch (error) {
         console.error('Erro ao carregar médicos:', error);
         toast.error('Erro ao carregar médicos');
