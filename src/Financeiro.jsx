@@ -71,7 +71,36 @@ const FilterGroup = styled.div`
 
 const Financeiro = () => {
   const { cities, fetchCities, loadingCities } = useStore();
-  const { can } = usePermissions();
+  const { can, user, getAll, getRole, isAdmin } = usePermissions();
+
+  // DEBUG TEMPORÁRIO - REMOVER APÓS TESTE
+  const debugPermissions = () => {
+    console.log('=== DEBUG DE PERMISSÕES - USUÁRIO ATUAL ===');
+    console.log('user:', user);
+    console.log('user.email:', user?.email);
+    console.log('user.role:', user?.role);
+    console.log('user.perfil:', user?.perfil);
+    console.log('user.permissions:', user?.permissions);
+    console.log('user.disabled:', user?.disabled);
+    console.log('getRole():', getRole());
+    console.log('isAdmin():', isAdmin());
+    console.log('getAll():', getAll());
+    console.log('can(PERMISSIONS.FINANCIAL_REPORTS):', can(PERMISSIONS.FINANCIAL_REPORTS));
+    console.log('can(PERMISSIONS.FINANCIAL_VIEW):', can(PERMISSIONS.FINANCIAL_VIEW));
+    console.log('PERMISSIONS.FINANCIAL_REPORTS:', PERMISSIONS.FINANCIAL_REPORTS);
+    
+    if (user?.permissions && Array.isArray(user.permissions)) {
+      console.log('user.permissions.includes(PERMISSIONS.FINANCIAL_REPORTS):', 
+        user.permissions.includes(PERMISSIONS.FINANCIAL_REPORTS));
+    }
+  };
+
+  // Executar debug quando o componente carregar
+  React.useEffect(() => {
+    if (user) {
+      debugPermissions();
+    }
+  }, [user]);
   const [cidadeSelecionada, setCidadeSelecionada] = useState('');
   const [dataSelecionada, setDataSelecionada] = useState('');
   const [diaSemana, setDiaSemana] = useState('');
@@ -1695,9 +1724,26 @@ const salvarNovoRegistro = async (registro) => {
           </div>
           
           <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+            {/* DEBUG: Sempre mostrar informações de debug */}
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
+              [DEBUG] can(FINANCIAL_REPORTS): {can(PERMISSIONS.FINANCIAL_REPORTS) ? 'TRUE' : 'FALSE'} | 
+              role: {getRole()} | isAdmin: {isAdmin() ? 'TRUE' : 'FALSE'}
+            </div>
+            
             {can(PERMISSIONS.FINANCIAL_REPORTS) && (
               <Button onClick={gerarPDF}>Gerar PDF</Button>
             )}
+            
+            {/* Botão temporário para debug */}
+            <Button 
+              onClick={() => {
+                console.log('=== DEBUG AO CLICAR ===');
+                debugPermissions();
+              }}
+              style={{ backgroundColor: '#ff6600' }}
+            >
+              DEBUG Info
+            </Button>
           </div>
         </>
       )}
