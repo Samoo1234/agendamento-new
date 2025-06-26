@@ -1695,7 +1695,9 @@ const salvarNovoRegistro = async (registro) => {
           </div>
           
           <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-            <Button onClick={gerarPDF}>Gerar PDF</Button>
+            {can(PERMISSIONS.FINANCIAL_REPORTS) && (
+              <Button onClick={gerarPDF}>Gerar PDF</Button>
+            )}
           </div>
         </>
       )}
