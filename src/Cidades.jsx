@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import useStore from './store/useStore';
 import { toast } from 'react-toastify';
+import { PERMISSIONS } from './config/permissions';
+import { usePermissions } from './hooks/usePermissions';
 
 const MainContent = styled.div`
   width: 100%;
@@ -91,6 +93,7 @@ const Cidades = () => {
   const [nomeCidade, setNomeCidade] = useState('');
   const [editingId, setEditingId] = useState(null);
   const { cities, fetchCities, addCity, updateCity, deleteCity, setIsLoading } = useStore();
+  const { can } = usePermissions();
 
   useEffect(() => {
     fetchCities().then(() => {
@@ -149,22 +152,34 @@ const Cidades = () => {
     }
   };
 
+  // Verificar se tem permissão para ver cidades
+  if (!can(PERMISSIONS.CITIES_VIEW)) {
+    return (
+      <MainContent>
+        <Title>Acesso Negado</Title>
+        <p>Você não tem permissão para visualizar cidades.</p>
+      </MainContent>
+    );
+  }
+
   return (
     <MainContent>
       <Title>Gerenciar Cidades</Title>
-      <FormContainer>
-        <InputGroup>
-          <Input
-            type="text"
-            placeholder="Nome da cidade"
-            value={nomeCidade}
-            onChange={(e) => setNomeCidade(e.target.value)}
-          />
-        </InputGroup>
-        <Button onClick={handleSubmit}>
-          {editingId ? 'ATUALIZAR' : 'CADASTRAR'}
-        </Button>
-      </FormContainer>
+      {can(PERMISSIONS.CITIES_CREATE) && (
+        <FormContainer>
+          <InputGroup>
+            <Input
+              type="text"
+              placeholder="Nome da cidade"
+              value={nomeCidade}
+              onChange={(e) => setNomeCidade(e.target.value)}
+            />
+          </InputGroup>
+          <Button onClick={handleSubmit}>
+            {editingId ? 'ATUALIZAR' : 'CADASTRAR'}
+          </Button>
+        </FormContainer>
+      )}
 
       <Table>
         <thead>
@@ -178,12 +193,16 @@ const Cidades = () => {
             <tr key={city.id}>
               <Td>{city.name || city.nome || JSON.stringify(city)}</Td>
               <Td>
-                <ActionButton $isDelete={false} onClick={() => handleEdit(city)}>
-                  Editar
-                </ActionButton>
-                <ActionButton $isDelete={true} onClick={() => handleDelete(city.id)}>
-                  Excluir
-                </ActionButton>
+                {can(PERMISSIONS.CITIES_EDIT) && (
+                  <ActionButton $isDelete={false} onClick={() => handleEdit(city)}>
+                    Editar
+                  </ActionButton>
+                )}
+                {can(PERMISSIONS.CITIES_DELETE) && (
+                  <ActionButton $isDelete={true} onClick={() => handleDelete(city.id)}>
+                    Excluir
+                  </ActionButton>
+                )}
               </Td>
             </tr>
           ))}

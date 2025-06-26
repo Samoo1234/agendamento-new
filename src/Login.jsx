@@ -113,11 +113,22 @@ function Login() {
       const userDoc = querySnapshot.docs[0];
       const userData = userDoc.data();
 
-      // Verificar se é um usuário admin
-      if (userData.role !== 'admin' && userData.role !== 'administrador') {
-        // Usuário não é admin, fazer logout
+      // Verificar se o usuário tem um role válido (admin ou usuario)
+      const hasValidRole = userData.role === 'admin' || 
+                           userData.role === 'administrador' ||
+                           userData.role === 'ADMIN' ||
+                           userData.role === 'SUPER_ADMIN' ||
+                           userData.role === 'usuario' ||
+                           userData.role === 'user' ||
+                           userData.perfil === 'admin' ||
+                           userData.perfil === 'administrador' ||
+                           userData.perfil === 'usuario' ||
+                           userData.perfil === 'user';
+                     
+      if (!hasValidRole) {
+        // Usuário sem role válido
         await auth.signOut();
-        throw new Error('Acesso não autorizado. Apenas administradores podem acessar este sistema.');
+        throw new Error('Acesso não autorizado. Entre em contato com o administrador para configurar suas permissões.');
       }
 
       // Verificar se o usuário está desativado
@@ -173,7 +184,7 @@ function Login() {
   return (
     <Container>
       <LoginCard>
-        <Title>Login Administrativo</Title>
+        <Title>Login do Sistema</Title>
         {error && <ErrorMessage>{error}</ErrorMessage>}
         <Form onSubmit={handleSubmit}>
           <Input

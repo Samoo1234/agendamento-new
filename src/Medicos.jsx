@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import useStore from './store/useStore';
 import toast from 'react-hot-toast';
+import { PERMISSIONS } from './config/permissions';
+import { usePermissions } from './hooks/usePermissions';
 
 const MainContent = styled.div`
   padding: 20px;
@@ -142,6 +144,7 @@ function Medicos() {
   const [nomeMedico, setNomeMedico] = useState('');
   const [editingId, setEditingId] = useState(null);
   const { doctors, addDoctor, updateDoctor, deleteDoctor, setIsLoading, fetchDoctors, isLoading } = useStore();
+  const { can } = usePermissions();
 
   // Carregar médicos quando o componente é montado
   useEffect(() => {
@@ -187,25 +190,37 @@ function Medicos() {
     }
   };
 
+  // Verificar se tem permissão para ver médicos
+  if (!can(PERMISSIONS.DOCTORS_VIEW)) {
+    return (
+      <MainContent>
+        <Title>Acesso Negado</Title>
+        <p>Você não tem permissão para visualizar médicos.</p>
+      </MainContent>
+    );
+  }
+
   return (
     <MainContent>
       <Title>Gerenciar Médicos</Title>
       
-      <FormContainer onSubmit={handleSubmit}>
-        <InputGroup>
-          <Label>Nome do Médico *</Label>
-          <Input
-            type="text"
-            value={nomeMedico}
-            onChange={(e) => setNomeMedico(e.target.value)}
-            placeholder="Digite o nome do médico"
-          />
-        </InputGroup>
+      {can(PERMISSIONS.DOCTORS_CREATE) && (
+        <FormContainer onSubmit={handleSubmit}>
+          <InputGroup>
+            <Label>Nome do Médico *</Label>
+            <Input
+              type="text"
+              value={nomeMedico}
+              onChange={(e) => setNomeMedico(e.target.value)}
+              placeholder="Digite o nome do médico"
+            />
+          </InputGroup>
 
-        <Button type="submit">
-          {editingId ? 'ATUALIZAR' : 'CADASTRAR'}
-        </Button>
-      </FormContainer>
+          <Button type="submit">
+            {editingId ? 'ATUALIZAR' : 'CADASTRAR'}
+          </Button>
+        </FormContainer>
+      )}
 
       {isLoading ? (
         <LoadingMessage>Carregando médicos...</LoadingMessage>
@@ -224,25 +239,29 @@ function Medicos() {
               <tr key={doctor.id}>
                 <Td>{doctor.name}</Td>
                 <Td>
-                  <ActionButton onClick={() => {
-                    setNomeMedico(doctor.name);
-                    setEditingId(doctor.id);
-                  }}>
-                    Editar
-                  </ActionButton>
-                  <ActionButton delete onClick={async () => {
-                    try {
-                      setIsLoading(true);
-                      await deleteDoctor(doctor.id);
-                      toast.success('Médico excluído com sucesso!');
-                    } catch (error) {
-                      toast.error('Erro ao excluir médico');
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}>
-                    Excluir
-                  </ActionButton>
+                  {can(PERMISSIONS.DOCTORS_EDIT) && (
+                    <ActionButton onClick={() => {
+                      setNomeMedico(doctor.name);
+                      setEditingId(doctor.id);
+                    }}>
+                      Editar
+                    </ActionButton>
+                  )}
+                  {can(PERMISSIONS.DOCTORS_DELETE) && (
+                    <ActionButton delete onClick={async () => {
+                      try {
+                        setIsLoading(true);
+                        await deleteDoctor(doctor.id);
+                        toast.success('Médico excluído com sucesso!');
+                      } catch (error) {
+                        toast.error('Erro ao excluir médico');
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}>
+                      Excluir
+                    </ActionButton>
+                  )}
                 </Td>
               </tr>
             ))}

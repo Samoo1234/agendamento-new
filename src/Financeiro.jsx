@@ -10,6 +10,8 @@ import { db } from './config/firebase';
 import * as firebaseService from './services/firebaseService';
 import useStore from './store/useStore';
 import { FaTrash, FaPlus } from 'react-icons/fa';
+import { PERMISSIONS } from './config/permissions';
+import { usePermissions } from './hooks/usePermissions';
 
 // Componentes estilizados
 const Container = styled.div`
@@ -69,6 +71,7 @@ const FilterGroup = styled.div`
 
 const Financeiro = () => {
   const { cities, fetchCities, loadingCities } = useStore();
+  const { can } = usePermissions();
   const [cidadeSelecionada, setCidadeSelecionada] = useState('');
   const [dataSelecionada, setDataSelecionada] = useState('');
   const [diaSemana, setDiaSemana] = useState('');
@@ -1312,6 +1315,16 @@ const salvarNovoRegistro = async (registro) => {
     // Formatar com 2 casas decimais e vírgula
     return numero.toFixed(2).replace('.', ',');
   };
+
+  // Verificar se tem permissão para ver dados financeiros
+  if (!can(PERMISSIONS.FINANCIAL_VIEW)) {
+    return (
+      <Container>
+        <Title>Acesso Negado</Title>
+        <p>Você não tem permissão para visualizar dados financeiros.</p>
+      </Container>
+    );
+  }
 
   return (
     <Container>

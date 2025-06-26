@@ -6,6 +6,8 @@ import { FaCog, FaTrash, FaEdit } from 'react-icons/fa';
 import ConfigurarHorariosModal from './components/ConfigurarHorariosModal';
 import * as firebaseService from './services/firebaseService';
 import { sanitizeFirestoreData } from './utils/firebaseUtils';
+import { PERMISSIONS } from './config/permissions';
+import { usePermissions } from './hooks/usePermissions';
 
 const MainContent = styled.div`
   padding: 20px;
@@ -165,6 +167,8 @@ function DatasDisponiveis() {
     fetchScheduleConfigs
   } = useStore();
 
+  const { can } = usePermissions();
+
   useEffect(() => {
     fetchScheduleConfigs();
   }, [fetchScheduleConfigs]);
@@ -320,57 +324,69 @@ function DatasDisponiveis() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Verificar se tem permissão para ver datas
+  if (!can(PERMISSIONS.DATES_VIEW)) {
+    return (
+      <MainContent>
+        <Title>Acesso Negado</Title>
+        <p>Você não tem permissão para visualizar datas disponíveis.</p>
+      </MainContent>
+    );
+  }
+
   return (
     <MainContent>
       <Title>Gerenciar Datas Disponíveis</Title>
-      <FormContainer>
-        <InputGroup>
-          <Label>Cidade *</Label>
-          <Select
-            name="cidade"
-            value={formData.cidade}
-            onChange={handleInputChange}
-          >
-            <option value="">Selecione uma cidade</option>
-            {cities.map(city => (
-              <option key={city.id} value={city.id}>
-                {city.name}
-              </option>
-            ))}
-          </Select>
-        </InputGroup>
+      {can(PERMISSIONS.DATES_CREATE) && (
+        <FormContainer>
+          <InputGroup>
+            <Label>Cidade *</Label>
+            <Select
+              name="cidade"
+              value={formData.cidade}
+              onChange={handleInputChange}
+            >
+              <option value="">Selecione uma cidade</option>
+              {cities.map(city => (
+                <option key={city.id} value={city.id}>
+                  {city.name}
+                </option>
+              ))}
+            </Select>
+          </InputGroup>
 
-        <InputGroup>
-          <Label>Médico *</Label>
-          <Select
-            name="medico"
-            value={formData.medico}
-            onChange={handleInputChange}
-            disabled={!formData.cidade}
-          >
-            <option value="">Selecione um médico</option>
-            {doctors.map(doctor => (
-              <option key={doctor.id} value={doctor.id}>
-                {doctor.name}
-              </option>
-            ))}
-          </Select>
-        </InputGroup>
+          <InputGroup>
+            <Label>Médico *</Label>
+            <Select
+              name="medico"
+              value={formData.medico}
+              onChange={handleInputChange}
+              disabled={!formData.cidade}
+            >
+              <option value="">Selecione um médico</option>
+              {doctors.map(doctor => (
+                <option key={doctor.id} value={doctor.id}>
+                  {doctor.name}
+                </option>
+              ))}
+            </Select>
+          </InputGroup>
 
-        <InputGroup>
-          <Label>Data *</Label>
-          <Input
-            type="date"
-            name="data"
-            value={formData.data}
-            onChange={handleInputChange}
-          />
-        </InputGroup>
+          <InputGroup>
+            <Label>Data *</Label>
+            <Input
+              type="date"
+              name="data"
+              value={formData.data}
+              onChange={handleInputChange}
+            />
+          </InputGroup>
 
-        <Button onClick={handleSubmit}>
-          {editingId ? 'ATUALIZAR' : 'CADASTRAR DATA'}
-        </Button>
-      </FormContainer>
+          <Button onClick={handleSubmit}>
+            {editingId ? 'ATUALIZAR' : 'CADASTRAR DATA'}
+          </Button>
+        </FormContainer>
+      )}
 
       <Table>
         <thead>
@@ -410,18 +426,22 @@ function DatasDisponiveis() {
                     >
                       <FaCog />
                     </ActionButton>
-                    <ActionButton
-                      edit
-                      onClick={() => handleEdit(date)}
-                    >
-                      <FaEdit />
-                    </ActionButton>
-                    <ActionButton
-                      delete
-                      onClick={() => handleDelete(date.id)}
-                    >
-                      <FaTrash />
-                    </ActionButton>
+                    {can(PERMISSIONS.DATES_EDIT) && (
+                      <ActionButton
+                        edit
+                        onClick={() => handleEdit(date)}
+                      >
+                        <FaEdit />
+                      </ActionButton>
+                    )}
+                    {can(PERMISSIONS.DATES_DELETE) && (
+                      <ActionButton
+                        delete
+                        onClick={() => handleDelete(date.id)}
+                      >
+                        <FaTrash />
+                      </ActionButton>
+                    )}
                   </ActionsContainer>
                 </Td>
               </tr>

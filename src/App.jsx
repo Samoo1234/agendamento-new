@@ -14,18 +14,6 @@ import AgendamentoForm from './AgendamentoForm';
 import GerenciarClientes from './GerenciarClientes';
 import Financeiro from './Financeiro';
 import HistoricoAgendamentos from './HistoricoAgendamentos';
-import { PERMISSIONS } from './config/permissions';
-import { withPermissions } from './components/PermissionGuard';
-
-// Componentes protegidos por permissões
-const ProtectedDashboard = withPermissions(Dashboard, [PERMISSIONS.DASHBOARD_VIEW]);
-const ProtectedDatasDisponiveis = withPermissions(DatasDisponiveis, [PERMISSIONS.DATES_VIEW]);
-const ProtectedMedicos = withPermissions(Medicos, [PERMISSIONS.DOCTORS_VIEW]);
-const ProtectedCidades = withPermissions(Cidades, [PERMISSIONS.CITIES_VIEW]);
-const ProtectedGerenciarClientes = withPermissions(GerenciarClientes, [PERMISSIONS.APPOINTMENTS_VIEW_ALL]);
-const ProtectedGerenciarUsuarios = withPermissions(GerenciarUsuarios, [PERMISSIONS.USERS_VIEW]);
-const ProtectedFinanceiro = withPermissions(Financeiro, [PERMISSIONS.FINANCIAL_VIEW]);
-const ProtectedHistoricoAgendamentos = withPermissions(HistoricoAgendamentos, [PERMISSIONS.APPOINTMENTS_VIEW_ALL]);
 
 function App() {
   return (
@@ -55,17 +43,17 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route element={<PrivateRoute />}>
           <Route element={<Layout />}>
-            <Route path="/dashboard" element={<ProtectedDashboard />} />
-            <Route path="/datas-disponiveis" element={<ProtectedDatasDisponiveis />} />
-            <Route path="/medicos" element={<ProtectedMedicos />} />
-            <Route path="/cidades" element={<ProtectedCidades />} />
-            <Route path="/clientes" element={<ProtectedGerenciarClientes />} />
-            <Route path="/gerenciar-usuarios" element={<ProtectedGerenciarUsuarios />} />
-            <Route path="/financeiro" element={<ProtectedFinanceiro />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/datas-disponiveis" element={<DatasDisponiveis />} />
+            <Route path="/medicos" element={<Medicos />} />
+            <Route path="/cidades" element={<Cidades />} />
+            <Route path="/clientes" element={<GerenciarClientes />} />
+            <Route path="/gerenciar-usuarios" element={<GerenciarUsuarios />} />
+            <Route path="/financeiro" element={<Financeiro />} />
             {/* Rota alternativa para o financeiro */}
-            <Route path="/modulo-financeiro" element={<ProtectedFinanceiro />} />
+            <Route path="/modulo-financeiro" element={<Financeiro />} />
             {/* Rota para o histórico de agendamentos */}
-            <Route path="/historico" element={<ProtectedHistoricoAgendamentos />} />
+            <Route path="/historico" element={<HistoricoAgendamentos />} />
           </Route>
         </Route>
       </Routes>
