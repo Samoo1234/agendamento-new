@@ -492,7 +492,15 @@ const GerenciarUsuarios = () => {
   // NOVAS FUNÇÕES PARA SISTEMA DE PERMISSÕES
   const openPermissionsModal = (user) => {
     setPermissionsUserId(user.id);
-    setCustomPermissions(user.permissions || []);
+    
+    // Se for admin, carregar TODAS as permissões automaticamente
+    if (user.role === 'admin' || user.role === 'administrador') {
+      setCustomPermissions(Object.values(PERMISSIONS));
+    } else {
+      // Se for usuário comum, carregar apenas as permissões salvas
+      setCustomPermissions(user.permissions || []);
+    }
+    
     setShowPermissionsModal(true);
   };
 
@@ -516,9 +524,19 @@ const GerenciarUsuarios = () => {
 
   const savePermissions = async () => {
     try {
+      // Encontrar o usuário atual para verificar o role
+      const currentUser = users.find(u => u.id === permissionsUserId);
+      
+      // Se for admin, forçar TODAS as permissões
+      let finalPermissions = customPermissions;
+      if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'administrador')) {
+        finalPermissions = Object.values(PERMISSIONS);
+        toast.success('Usuário admin sempre tem acesso total e irrestrito!');
+      }
+
       const userRef = doc(db, 'usuarios', permissionsUserId);
       const updateData = {
-        permissions: customPermissions,
+        permissions: finalPermissions,
         updatedAt: new Date()
       };
 
@@ -567,6 +585,11 @@ const GerenciarUsuarios = () => {
           role: formData.role
         };
         
+        // Se mudou para admin, dar todas as permissões automaticamente
+        if (formData.role === 'admin' || formData.role === 'administrador') {
+          updateData.permissions = Object.values(PERMISSIONS);
+        }
+        
         await updateDoc(userRef, updateData);
         toast.success('Usuário atualizado com sucesso!');
       } else {
@@ -581,13 +604,20 @@ const GerenciarUsuarios = () => {
             formData.senha
           );
 
-          await addDoc(collection(db, 'usuarios'), {
+          const newUserData = {
             email: formData.email,
             cidade: formData.cidade,
             role: formData.role,
             disabled: false,
             dataCriacao: new Date()
-          });
+          };
+          
+          // Se for admin, dar todas as permissões automaticamente
+          if (formData.role === 'admin' || formData.role === 'administrador') {
+            newUserData.permissions = Object.values(PERMISSIONS);
+          }
+
+          await addDoc(collection(db, 'usuarios'), newUserData);
           
           toast.success('Usuário criado com sucesso!');
           setShowModal(false);

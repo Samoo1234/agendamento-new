@@ -8,6 +8,8 @@ import { BiBuilding } from 'react-icons/bi';
 import { FaMoneyBillWave } from 'react-icons/fa';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { usePermissions } from './hooks/usePermissions';
+import { PERMISSIONS } from './config/permissions';
 
 const Container = styled.div`
   display: flex;
@@ -144,54 +146,66 @@ function Layout() {
   const location = useLocation();
   const { isAuthenticated, logout, user } = useStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { can } = usePermissions();
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  // Menu items simples sem sistema de permissões
-  const menuItems = [
+  // Menu items com sistema de permissões
+  const allMenuItems = [
     { 
       icon: <AiOutlineDashboard />, 
       text: 'Dashboard', 
-      path: '/dashboard'
+      path: '/dashboard',
+      permission: PERMISSIONS.DASHBOARD_VIEW
     },
     { 
       icon: <AiOutlineCalendar />, 
       text: 'Datas Disponíveis', 
-      path: '/datas-disponiveis'
+      path: '/datas-disponiveis',
+      permission: PERMISSIONS.DATES_VIEW
     },
     { 
       icon: <AiOutlineUser />, 
       text: 'Médicos', 
-      path: '/medicos'
+      path: '/medicos',
+      permission: PERMISSIONS.DOCTORS_VIEW
     },
     { 
       icon: <BiBuilding />, 
       text: 'Cidades', 
-      path: '/cidades'
+      path: '/cidades',
+      permission: PERMISSIONS.CITIES_VIEW
     },
     { 
       icon: <AiOutlineTeam />, 
       text: 'Clientes', 
-      path: '/clientes'
+      path: '/clientes',
+      permission: PERMISSIONS.CLIENTS_VIEW
     },
     { 
       icon: <FaMoneyBillWave />, 
       text: 'Financeiro', 
-      path: '/financeiro'
+      path: '/financeiro',
+      permission: PERMISSIONS.FINANCIAL_VIEW
     },
     { 
       icon: <AiOutlineHistory />, 
       text: 'Histórico', 
-      path: '/historico'
+      path: '/historico',
+      permission: PERMISSIONS.APPOINTMENTS_VIEW
     },
     { 
       icon: <AiOutlineSetting />, 
       text: 'Gerenciar Usuários', 
-      path: '/gerenciar-usuarios'
+      path: '/gerenciar-usuarios',
+      permission: PERMISSIONS.USERS_VIEW
     }
   ];
+
+  // Filtrar menu items baseado nas permissões do usuário
+  const menuItems = allMenuItems.filter(item => can(item.permission));
 
   useEffect(() => {
     if (!isAuthenticated) {

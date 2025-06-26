@@ -7,6 +7,8 @@ import * as firebaseService from './services/firebaseService';
 import jsPDF from 'jspdf';
 import useStore from './store/useStore';
 import AgendamentoModal from './components/AgendamentoModal';
+import { usePermissions } from './hooks/usePermissions';
+import { PERMISSIONS } from './config/permissions';
 
 const Container = styled.div`
   padding: 20px;
@@ -127,6 +129,7 @@ const GerenciarClientes = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
   const { cities, appointmentUpdateCounter } = useStore();
+  const { can } = usePermissions();
 
   const fetchAgendamentos = async () => {
     try {
@@ -414,17 +417,31 @@ const GerenciarClientes = () => {
     return <div>Carregando...</div>;
   }
 
+  // Verificar se tem permissão para ver clientes
+  if (!can(PERMISSIONS.CLIENTS_VIEW)) {
+    return (
+      <Container>
+        <Title>Acesso Negado</Title>
+        <p>Você não tem permissão para visualizar clientes.</p>
+      </Container>
+    );
+  }
+
   return (
     <Container>
       <TopContainer>
         <Title>Gerenciar Agendamentos</Title>
         <ButtonGroup>
-          <Button $variant="primary" onClick={() => setIsModalOpen(true)}>
-            Novo Agendamento
-          </Button>
-          <Button $variant="pdf" onClick={generatePDF}>
-            Gerar PDF
-          </Button>
+          {can(PERMISSIONS.APPOINTMENTS_CREATE) && (
+            <Button $variant="primary" onClick={() => setIsModalOpen(true)}>
+              Novo Agendamento
+            </Button>
+          )}
+          {can(PERMISSIONS.EXPORT_DATA) && (
+            <Button $variant="pdf" onClick={generatePDF}>
+              Gerar PDF
+            </Button>
+          )}
         </ButtonGroup>
       </TopContainer>
       
@@ -493,29 +510,39 @@ const GerenciarClientes = () => {
               <Td>{agendamento.horario}</Td>
               <Td>{agendamento.observacoes || agendamento.informacoes || ''}</Td>
               <Td>
-                <Select
-                  value={agendamento.status}
-                  onChange={(e) => handleStatusChange(agendamento.id, e.target.value)}
-                  style={{ width: '100%' }}
-                >
-                  <option value="pendente">Pendente</option>
-                  <option value="confirmado">Confirmado</option>
-                  <option value="cancelado">Cancelado</option>
-                </Select>
+                {can(PERMISSIONS.APPOINTMENTS_MANAGE_STATUS) ? (
+                  <Select
+                    value={agendamento.status}
+                    onChange={(e) => handleStatusChange(agendamento.id, e.target.value)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="pendente">Pendente</option>
+                    <option value="confirmado">Confirmado</option>
+                    <option value="cancelado">Cancelado</option>
+                  </Select>
+                ) : (
+                  <StatusBadge $status={agendamento.status}>
+                    {agendamento.status}
+                  </StatusBadge>
+                )}
               </Td>
               <Td>
                 <div style={{ display: 'flex', gap: '5px' }}>
-                  <ActionButton 
-                    onClick={() => handleEdit(agendamento)}
-                    style={{ backgroundColor: '#007bff' }}
-                  >
-                    Editar
-                  </ActionButton>
-                  <ActionButton 
-                    onClick={() => handleDelete(agendamento.id)}
-                  >
-                    Excluir
-                  </ActionButton>
+                  {can(PERMISSIONS.APPOINTMENTS_EDIT) && (
+                    <ActionButton 
+                      onClick={() => handleEdit(agendamento)}
+                      style={{ backgroundColor: '#007bff' }}
+                    >
+                      Editar
+                    </ActionButton>
+                  )}
+                  {can(PERMISSIONS.APPOINTMENTS_DELETE) && (
+                    <ActionButton 
+                      onClick={() => handleDelete(agendamento.id)}
+                    >
+                      Excluir
+                    </ActionButton>
+                  )}
                 </div>
               </Td>
             </tr>
