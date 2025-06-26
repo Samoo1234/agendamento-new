@@ -10,6 +10,8 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { registerLocale, setDefaultLocale } from 'react-datepicker';
 import ptBR from 'date-fns/locale/pt-BR';
+import { usePermissions } from './hooks/usePermissions';
+import { PERMISSIONS } from './config/permissions';
 
 // Registrar o locale pt-BR para o DatePicker
 registerLocale('pt-BR', ptBR);
@@ -198,6 +200,7 @@ const HistoricoAgendamentos = () => {
   const [filteredAppointments, setFilteredAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cidades, setCidades] = useState([]);
+  const { can } = usePermissions();
   const [tiposAgendamento, setTiposAgendamento] = useState({});
   
   // Paginação
@@ -487,14 +490,26 @@ const HistoricoAgendamentos = () => {
     }
   }, [currentPage, filteredAppointments]);
 
+  // Verificar se tem permissão para ver histórico
+  if (!can(PERMISSIONS.APPOINTMENTS_VIEW)) {
+    return (
+      <Container>
+        <Title>Acesso Negado</Title>
+        <p>Você não tem permissão para visualizar o histórico de agendamentos.</p>
+      </Container>
+    );
+  }
+
   return (
     <Container>
       <TopContainer>
         <Title>Histórico de Agendamentos</Title>
         <ButtonGroup>
-          <Button onClick={generatePDF} $variant="pdf">
-            <FaFilePdf /> Exportar PDF
-          </Button>
+          {can(PERMISSIONS.EXPORT_DATA) && (
+            <Button onClick={generatePDF} $variant="pdf">
+              <FaFilePdf /> Exportar PDF
+            </Button>
+          )}
         </ButtonGroup>
       </TopContainer>
       

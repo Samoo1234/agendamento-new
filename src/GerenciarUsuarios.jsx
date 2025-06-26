@@ -372,7 +372,13 @@ const PERMISSION_GROUPS = {
       { key: 'FINANCIAL_REPORTS', label: 'Relatórios financeiros' }
     ]
   },
-
+  historico: {
+    label: '📋 Histórico',
+    permissions: [
+      { key: 'APPOINTMENTS_VIEW', label: 'Ver histórico de agendamentos' },
+      { key: 'EXPORT_DATA', label: 'Exportar dados (PDF)' }
+    ]
+  },
   sistema: {
     label: '⚙️ Sistema & Relatórios',
     permissions: [

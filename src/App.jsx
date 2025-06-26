@@ -14,7 +14,6 @@ import AgendamentoForm from './AgendamentoForm';
 import GerenciarClientes from './GerenciarClientes';
 import Financeiro from './Financeiro';
 import HistoricoAgendamentos from './HistoricoAgendamentos';
-import FixAdminUser from './FixAdminUser';
 
 function App() {
   return (
@@ -42,7 +41,6 @@ function App() {
       <Routes>
         <Route path="/" element={<AgendamentoForm />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/fix-admin" element={<FixAdminUser />} />
         <Route element={<PrivateRoute />}>
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<Dashboard />} />
