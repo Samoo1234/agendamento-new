@@ -10,6 +10,7 @@ const useStore = create(
       user: null,
       login: (userData) => set({ isAuthenticated: true, user: userData }),
       logout: () => set({ isAuthenticated: false, user: null }),
+      updateCurrentUser: (userData) => set({ user: userData }),
 
       // Usuários
       users: [],

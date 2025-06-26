@@ -7,6 +7,7 @@ import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { auth } from './config/firebase';
 import { PERMISSIONS } from './config/permissions';
 import { usePermissions } from './hooks/usePermissions';
+import useStore from './store/useStore';
 
 const MainContent = styled.div`
   width: 100%;
@@ -410,7 +411,10 @@ const GerenciarUsuarios = () => {
   const [customPermissions, setCustomPermissions] = useState([]);
 
   // HOOK DE PERMISSÕES
-  const { can } = usePermissions();
+  const { can, user } = usePermissions();
+  
+  // HOOK DO STORE
+  const { updateCurrentUser } = useStore();
 
   const fetchUsers = async () => {
     try {
@@ -567,9 +571,25 @@ const GerenciarUsuarios = () => {
       await updateDoc(userRef, updateData);
       console.log('SUCESSO - Permissões salvas no Firestore');
       
-      toast.success('Permissões atualizadas com sucesso!');
-      closePermissionsModal();
-      fetchUsers();
+      // Se editou o próprio usuário logado, atualizar o estado imediatamente
+      if (currentUser && currentUser.email === user?.email) {
+        console.log('Atualizando estado do usuário logado...');
+        // Atualizar o usuário no store com as novas permissões
+        const updatedUser = { ...user, permissions: finalPermissions };
+        updateCurrentUser(updatedUser);
+        toast.success('Permissões atualizadas! Aplicando mudanças...');
+        
+        // Dar um tempinho para o estado atualizar e então fechar o modal
+        setTimeout(() => {
+          closePermissionsModal();
+          fetchUsers();
+        }, 500);
+        return; // Sair da função para não executar o código abaixo
+      } else {
+        toast.success('Permissões atualizadas com sucesso!');
+        closePermissionsModal();
+        fetchUsers();
+      }
     } catch (error) {
       console.error('Erro ao salvar permissões:', error);
       toast.error('Erro ao salvar permissões');
