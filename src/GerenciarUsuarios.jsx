@@ -519,43 +519,25 @@ const GerenciarUsuarios = () => {
   };
 
   const handlePermissionToggle = (permission) => {
-    console.log('=== TOGGLE PERMISSION ===');
-    console.log('permission:', permission);
-    console.log('customPermissions antes:', customPermissions);
-    
     setCustomPermissions(prev => {
       if (prev.includes(permission)) {
-        console.log('REMOVENDO permissão:', permission);
-        const newPermissions = prev.filter(p => p !== permission);
-        console.log('customPermissions depois (removido):', newPermissions);
-        return newPermissions;
+        return prev.filter(p => p !== permission);
       } else {
-        console.log('ADICIONANDO permissão:', permission);
-        const newPermissions = [...prev, permission];
-        console.log('customPermissions depois (adicionado):', newPermissions);
-        return newPermissions;
+        return [...prev, permission];
       }
     });
   };
 
   const savePermissions = async () => {
     try {
-      console.log('=== SALVANDO PERMISSÕES ===');
-      
       // Encontrar o usuário atual para verificar o role
       const currentUser = users.find(u => u.id === permissionsUserId);
-      console.log('currentUser:', currentUser);
-      console.log('customPermissions:', customPermissions);
-      console.log('permissionsUserId:', permissionsUserId);
       
       // Se for admin, forçar TODAS as permissões
       let finalPermissions = customPermissions;
       if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'administrador')) {
         finalPermissions = Object.values(PERMISSIONS);
-        console.log('USUÁRIO É ADMIN - forçando todas as permissões:', finalPermissions);
         toast.success('Usuário admin sempre tem acesso total e irrestrito!');
-      } else {
-        console.log('USUÁRIO COMUM - usando permissões customizadas:', finalPermissions);
       }
 
       const userRef = doc(db, 'usuarios', permissionsUserId);
@@ -564,16 +546,10 @@ const GerenciarUsuarios = () => {
         updatedAt: new Date()
       };
 
-      console.log('updateData que será salvo:', updateData);
-      console.log('Verificação - finalPermissions inclui FINANCIAL_REPORTS?:', 
-        finalPermissions.includes(PERMISSIONS.FINANCIAL_REPORTS));
-
       await updateDoc(userRef, updateData);
-      console.log('SUCESSO - Permissões salvas no Firestore');
       
       // Se editou o próprio usuário logado, atualizar o estado imediatamente
       if (currentUser && currentUser.email === user?.email) {
-        console.log('Atualizando estado do usuário logado...');
         // Atualizar o usuário no store com as novas permissões
         const updatedUser = { ...user, permissions: finalPermissions };
         updateCurrentUser(updatedUser);
