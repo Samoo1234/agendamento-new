@@ -128,7 +128,7 @@ const GerenciarClientes = () => {
   const [statusFiltro, setStatusFiltro] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
-  const { cities, appointmentUpdateCounter } = useStore();
+  const { cities, appointmentUpdateCounter, availableDates } = useStore();
   const { can } = usePermissions();
 
   const fetchAgendamentos = async () => {
@@ -167,7 +167,12 @@ const GerenciarClientes = () => {
   // Obter datas disponíveis com base na cidade selecionada
   const datasDisponiveis = [...new Set(
     agendamentos
-      .filter(a => a.cidade === cidadeFiltro)
+      .filter(a => {
+        // Normalizar strings para comparação (remover espaços extras e converter para minúsculas)
+        const cidadeAgendamento = (a.cidade || '').trim().toLowerCase();
+        const cidadeFiltrada = (cidadeFiltro || '').trim().toLowerCase();
+        return cidadeAgendamento === cidadeFiltrada;
+      })
       .map(a => a.data ? a.data.trim() : a.data)
   )].sort();
 
@@ -191,10 +196,10 @@ const GerenciarClientes = () => {
 
   // Filtrar agendamentos com base apenas na cidade e data selecionadas (para o contador)
   const agendamentosPorCidadeEData = agendamentos.filter(agendamento => {
-    return (
-      (!cidadeFiltro || agendamento.cidade === cidadeFiltro) &&
-      (!dataFiltro || agendamento.data === dataFiltro)
-    );
+    const cidadeMatch = !cidadeFiltro || 
+      (agendamento.cidade || '').trim().toLowerCase() === (cidadeFiltro || '').trim().toLowerCase();
+    const dataMatch = !dataFiltro || agendamento.data === dataFiltro;
+    return cidadeMatch && dataMatch;
   });
 
   // Contador de agendamentos para a cidade e data selecionadas
@@ -202,7 +207,7 @@ const GerenciarClientes = () => {
 
   // Filtrar agendamentos com base nos critérios selecionados (incluindo status)
   const agendamentosFiltrados = agendamentos.filter(agendamento => {
-    const matchCidade = agendamento.cidade === cidadeFiltro;
+    const matchCidade = (agendamento.cidade || '').trim().toLowerCase() === (cidadeFiltro || '').trim().toLowerCase();
     const matchData = (agendamento.data ? agendamento.data.trim() : agendamento.data) === (dataFiltro ? dataFiltro.trim() : dataFiltro);
     const matchStatus = !statusFiltro || agendamento.status === statusFiltro;
     

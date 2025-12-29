@@ -466,16 +466,34 @@ const GerenciarUsuarios = () => {
         // 2. Excluir da coleção usuarios
         await deleteDoc(doc(db, 'usuarios', id));
         
-        // 3. Tentar excluir do Firebase Authentication (se possível)
+        // 3. Excluir do Firebase Authentication via Cloud Function
         if (userEmail) {
           try {
-            // Nota: Isso só funciona se o usuário atual for admin e tiver as permissões adequadas
-            // Para funcionar completamente, seria necessário usar Firebase Admin SDK
+            const response = await fetch(
+              'https://us-central1-oticadavi-113e0.cloudfunctions.net/deleteUserByEmail',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: userEmail })
+              }
+            );
 
-            toast.success(`Usuário excluído da coleção! Para completar, remova ${userEmail} do Firebase Authentication no console.`);
+            const data = await response.json();
+
+            if (response.ok) {
+              toast.success('Usuário excluído completamente do sistema e do Authentication!');
+            } else if (response.status === 404) {
+              // Usuário não existe no Authentication, mas foi removido do Firestore
+              toast.success('Usuário excluído do sistema (não estava no Authentication)');
+            } else {
+              console.warn('Erro ao deletar do Authentication:', data);
+              toast.warning(`Usuário excluído do sistema. Erro ao remover do Authentication: ${data.error}`);
+            }
           } catch (authError) {
-            console.warn('Não foi possível remover do Authentication automaticamente:', authError);
-            toast.success(`Usuário excluído da coleção! Para completar, remova ${userEmail} do Firebase Authentication no console.`);
+            console.error('Erro ao chamar Cloud Function:', authError);
+            toast.warning(`Usuário excluído do sistema. Para completar, remova ${userEmail} do Firebase Authentication no console.`);
           }
         } else {
           toast.success('Usuário excluído com sucesso!');

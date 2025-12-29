@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deletar Usuário do Firebase Authentication</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #c82333;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .message.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗑️ Deletar Usuário do Firebase Authentication</h1>
+        
+        <div class="warning">
+            ⚠️ <strong>Atenção:</strong> Esta ação irá deletar permanentemente o usuário do Firebase Authentication. Use com cuidado!
+        </div>
+
+        <div class="input-group">
+            <label for="email">Email do usuário:</label>
+            <input type="email" id="email" placeholder="exemplo@email.com" value="oticadavicm@gmail.com">
+        </div>
+
+        <button id="deleteBtn" onclick="deleteUserFromAuth()">Deletar Usuário do Authentication</button>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6sxRPQn4UVFmM64oraRjJf9acTbP5-Ds",
+            authDomain: "oticadavi-113e0.firebaseapp.com",
+            projectId: "oticadavi-113e0",
+            storageBucket: "oticadavi-113e0.appspot.com",
+            messagingSenderId: "258252033306",
+            appId: "1:258252033306:web:88af7cdb01236c95d670a3",
+            measurementId: "G-B4BDGHWF70"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        window.deleteUserFromAuth = async function() {
+            const email = document.getElementById('email').value;
+            const messageDiv = document.getElementById('message');
+            const deleteBtn = document.getElementById('deleteBtn');
+
+            if (!email) {
+                showMessage('Por favor, insira um email válido.', 'error');
+                return;
+            }
+
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'Deletando...';
+            messageDiv.style.display = 'none';
+
+            try {
+                // Chamar a Cloud Function para deletar o usuário
+                const functionUrl = 'https://us-central1-oticadavi-113e0.cloudfunctions.net/deleteUserByEmail';
+                
+                showMessage('Enviando requisição para deletar usuário...', 'info');
+
+                const response = await fetch(functionUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(`✅ Sucesso! ${data.message}`, 'success');
+                } else {
+                    if (response.status === 404) {
+                        showMessage(`ℹ️ O usuário ${email} não foi encontrado no Firebase Authentication. Você pode criar um novo usuário com este email.`, 'info');
+                    } else {
+                        showMessage(`❌ Erro: ${data.error || data.details}`, 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showMessage(`❌ Erro ao deletar usuário: ${error.message}`, 'error');
+            } finally {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = 'Deletar Usuário do Authentication';
+            }
+        };
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

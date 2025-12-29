@@ -401,3 +401,67 @@ exports.getAppointmentsByStatus = functions.https.onRequest(async (req, res) => 
     });
   }
 });
+
+/**
+ * Cloud Function para deletar usuário do Firebase Authentication por email.
+ * Esta função permite deletar usuários do Authentication que foram removidos do Firestore.
+ */
+exports.deleteUserByEmail = functions.https.onRequest(async (req, res) => {
+  console.log('Função deleteUserByEmail acionada');
+  console.log('Método HTTP:', req.method);
+  console.log('Body:', JSON.stringify(req.body));
+  
+  // Permitir CORS
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Lidar com requisições OPTIONS (preflight)
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  
+  // Verificar se a requisição é POST
+  if (req.method !== 'POST') {
+    console.log('Método não permitido:', req.method);
+    return res.status(405).json({ error: 'Método não permitido. Use POST.' });
+  }
+  
+  const { email } = req.body;
+  
+  if (!email) {
+    console.error('Email não fornecido');
+    return res.status(400).json({ error: 'Email é obrigatório' });
+  }
+  
+  try {
+    // Buscar usuário por email no Firebase Authentication
+    const userRecord = await admin.auth().getUserByEmail(email);
+    
+    // Deletar o usuário do Firebase Authentication
+    await admin.auth().deleteUser(userRecord.uid);
+    
+    console.log(`Usuário ${email} (UID: ${userRecord.uid}) deletado com sucesso do Firebase Authentication`);
+    
+    return res.status(200).json({
+      success: true,
+      message: `Usuário ${email} deletado com sucesso do Firebase Authentication`,
+      uid: userRecord.uid
+    });
+  } catch (error) {
+    console.error('Erro ao deletar usuário:', error);
+    
+    // Se o usuário não existir no Authentication
+    if (error.code === 'auth/user-not-found') {
+      return res.status(404).json({
+        error: 'Usuário não encontrado no Firebase Authentication',
+        email: email
+      });
+    }
+    
+    return res.status(500).json({
+      error: 'Erro ao deletar usuário',
+      details: error.message
+    });
+  }
+});
